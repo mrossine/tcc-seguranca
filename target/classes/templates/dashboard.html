@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Segurança Fatec ZL</title>
+<link
+	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+	rel="stylesheet">
+<link rel="stylesheet"
+	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.sidebar {
+	min-height: 100vh;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+}
+
+.sidebar a {
+	color: rgba(255, 255, 255, 0.8);
+	text-decoration: none;
+	padding: 10px 15px;
+	display: block;
+	transition: all 0.3s;
+}
+
+.sidebar a:hover, .sidebar a.active {
+	background: rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 10px;
+}
+
+.stat-card {
+	border: none;
+	border-radius: 15px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+	transition: transform 0.3s;
+}
+
+.stat-card:hover {
+	transform: translateY(-5px);
+}
+
+.alert-card {
+	border-left: 4px solid #ffc107;
+}
+
+.carona-card {
+	border-left: 4px solid #28a745;
+}
+</style>
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="row">
+			<!-- Sidebar -->
+			<div class="col-md-3 col-lg-2 px-0 sidebar">
+				<div class="text-center py-4">
+					<i class="bi bi-shield-shaded display-3"></i>
+					<h4 class="mt-2">Segurança Fatec ZL</h4>
+				</div>
+				<nav class="nav flex-column px-3">
+					<a href="/dashboard" class="active"> <i
+						class="bi bi-house-door"></i> Dashboard
+					</a> <a href="/alertas"> <i class="bi bi-exclamation-triangle"></i>
+						Alertas
+					</a> <a href="/caronas"> <i class="bi bi-car-front"></i> Caronas
+					</a> <a href="/estatisticas"> <i class="bi bi-bar-chart"></i>
+						Estatísticas
+					</a> <a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
+					</a> <a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
+					</a>
+				</nav>
+			</div>
+
+			<!-- Main Content -->
+			<div class="col-md-9 col-lg-10 px-4 py-3">
+				<div class="d-flex justify-content-between align-items-center mb-4">
+					<h2>Dashboard</h2>
+					<div>
+						<span class="badge bg-success p-2"> <i
+							class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
+						</span>
+					</div>
+				</div>
+
+				<!-- Statistics Cards -->
+				<div class="row mb-4">
+					<div class="col-md-4 mb-3">
+						<div class="card stat-card">
+							<div class="card-body">
+								<div class="d-flex justify-content-between">
+									<div>
+										<h6 class="text-muted">Alertas Ativos</h6>
+										<h3 class="mb-0" id="totalAlertas">0</h3>
+									</div>
+									<i class="bi bi-exclamation-triangle display-4 text-warning"></i>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="col-md-4 mb-3">
+						<div class="card stat-card">
+							<div class="card-body">
+								<div class="d-flex justify-content-between">
+									<div>
+										<h6 class="text-muted">Caronas Disponíveis</h6>
+										<h3 class="mb-0" id="totalCaronas">0</h3>
+									</div>
+									<i class="bi bi-car-front display-4 text-success"></i>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="col-md-4 mb-3">
+						<div class="card stat-card">
+							<div class="card-body">
+								<div class="d-flex justify-content-between">
+									<div>
+										<h6 class="text-muted">Usuários Ativos</h6>
+										<h3 class="mb-0" id="totalUsuarios">0</h3>
+									</div>
+									<i class="bi bi-people display-4 text-primary"></i>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Quick Actions -->
+				<div class="row mb-4">
+					<div class="col-12">
+						<div class="card">
+							<div class="card-body">
+								<h5 class="card-title">Ações Rápidas</h5>
+								<div class="d-flex gap-2">
+									<a href="/alertas/novo" class="btn btn-warning"> <i
+										class="bi bi-plus-circle"></i> Novo Alerta
+									</a> <a href="/caronas/nova" class="btn btn-success"> <i
+										class="bi bi-plus-circle"></i> Oferecer Carona
+									</a>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Recent Alerts -->
+				<div class="row">
+					<div class="col-12">
+						<div class="card">
+							<div class="card-header">
+								<h5 class="mb-0">Alertas Recentes</h5>
+							</div>
+							<div class="card-body">
+								<div id="recentAlertas">
+									<p class="text-muted text-center">Carregando alertas...</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script
+		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script>
+        // Load statistics
+        fetch('/api/estatisticas/ocorrencias')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('totalAlertas').textContent = data.totalAlertasAtivos || 0;
+                document.getElementById('totalCaronas').textContent = data.totalCaronasDisponiveis || 0;
+                document.getElementById('totalUsuarios').textContent = data.totalUsuarios || 0;
+            });
+        
+        // Load recent alerts
+        fetch('/api/alertas')
+            .then(response => response.json())
+            .then(alertas => {
+                const container = document.getElementById('recentAlertas');
+                if (alertas.length === 0) {
+                    container.innerHTML = '<p class="text-muted text-center">Nenhum alerta recente.</p>';
+                    return;
+                }
+                
+                container.innerHTML = alertas.slice(0, 5).map(alerta => `
+                    <div class="alert-card p-3 mb-2 border rounded">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">${alerta.titulo}</h6>
+                            <small class="text-muted">${new Date(alerta.dataHora).toLocaleString()}</small>
+                        </div>
+                        <p class="mb-1">${alerta.descricao || 'Sem descrição'}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i> ${alerta.localizacao}
+                        </small>
+                    </div>
+                `).join('');
+            });
+    </script>
+</body>
+</html>

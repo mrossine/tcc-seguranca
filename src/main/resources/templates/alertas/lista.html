@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alertas - Segurança Fatec ZL</title>
+<link
+	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+	rel="stylesheet">
+<link rel="stylesheet"
+	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<style>
+.sidebar {
+	min-height: 100vh;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+}
+
+.sidebar a {
+	color: rgba(255, 255, 255, 0.8);
+	text-decoration: none;
+	padding: 10px 15px;
+	display: block;
+	transition: all 0.3s;
+}
+
+.sidebar a:hover, .sidebar a.active {
+	background: rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 10px;
+}
+
+.alert-card {
+	border-left: 4px solid #ffc107;
+	transition: transform 0.3s;
+}
+
+.alert-card:hover {
+	transform: translateY(-3px);
+}
+
+.filter-card {
+	background-color: #f8f9fa;
+	border: none;
+	border-radius: 10px;
+}
+
+.badge-furto {
+	background-color: #dc3545;
+}
+
+.badge-roubo {
+	background-color: #dc3545;
+}
+
+.badge-atividade-suspeita {
+	background-color: #ffc107;
+	color: #000;
+}
+
+.badge-falta-iluminacao {
+	background-color: #6c757d;
+}
+
+.badge-outro {
+	background-color: #17a2b8;
+}
+</style>
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="row">
+			<!-- Sidebar -->
+			<div class="col-md-3 col-lg-2 px-0 sidebar">
+				<div class="text-center py-4">
+					<i class="bi bi-shield-shaded display-3"></i>
+					<h4 class="mt-2">Segurança Fatec ZL</h4>
+				</div>
+				<nav class="nav flex-column px-3">
+					<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard
+					</a> 
+					<a href="/alertas" class="active"> <i class="bi bi-exclamation-triangle"></i> Alertas
+					</a> 
+					<a href="/caronas"> <i class="bi bi-car-front"></i> Caronas
+					</a> 
+					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas
+					</a> 
+					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
+					</a> 
+					<a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
+					</a>
+				</nav>
+			</div>
+
+			<!-- Main Content -->
+			<div class="col-md-9 col-lg-10 px-4 py-3">
+				<div class="d-flex justify-content-between align-items-center mb-4">
+					<h2>Alertas de Segurança</h2>
+					<div>
+						<span class="badge bg-success p-2"> <i
+							class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
+						</span>
+					</div>
+				</div>
+
+				<!-- Quick Actions -->
+				<div class="row mb-4">
+					<div class="col-12">
+						<div class="card">
+							<div class="card-body">
+								<h5 class="card-title">Ações Rápidas</h5>
+								<div class="d-flex gap-2">
+									<a href="/alertas/novo" class="btn btn-warning"> <i
+										class="bi bi-plus-circle"></i> Novo Alerta
+									</a>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Filtros -->
+				<div class="card filter-card mb-4">
+					<div class="card-body">
+						<h5><i class="bi bi-funnel"></i> Filtrar Alertas</h5>
+						<div class="row g-3">
+							<div class="col-md-4">
+								<label class="form-label">Tipo</label>
+								<select class="form-select" id="tipoFiltro">
+									<option value="">Todos</option>
+									<option value="FURTO">Furto</option>
+									<option value="ROUBO">Roubo</option>
+									<option value="ATIVIDADE_SUSPEITA">Atividade Suspeita</option>
+									<option value="FALTA_ILUMINACAO">Falta de Iluminação</option>
+									<option value="OUTRO">Outro</option>
+								</select>
+							</div>
+							<div class="col-md-4">
+								<label class="form-label">Data Início</label>
+								<input type="date" class="form-control" id="dataInicio">
+							</div>
+							<div class="col-md-4">
+								<label class="form-label">Data Fim</label>
+								<input type="date" class="form-control" id="dataFim">
+							</div>
+							<div class="col-12">
+								<button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button>
+								<button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Lista de Alertas -->
+				<div id="alertasContainer" class="row">
+					<div class="col-12 text-center py-5">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">Carregando...</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script
+		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script>
+        let alertas = [];
+
+        function carregarAlertas() {
+            fetch('/api/alertas')
+                .then(response => response.json())
+                .then(data => {
+                    alertas = data;
+                    aplicarFiltros();
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar alertas:', error);
+                    document.getElementById('alertasContainer').innerHTML = '<div class="col-12"><div class="alert alert-danger">Erro ao carregar alertas</div></div>';
+                });
+        }
+
+        function formatarData(data) {
+            return new Date(data).toLocaleString('pt-BR');
+        }
+
+        function getBadgeClass(tipo) {
+            const classes = {
+                'FURTO': 'badge-furto',
+                'ROUBO': 'badge-roubo',
+                'ATIVIDADE_SUSPEITA': 'badge-atividade-suspeita',
+                'FALTA_ILUMINACAO': 'badge-falta-iluminacao',
+                'OUTRO': 'badge-outro'
+            };
+            return classes[tipo] || 'bg-secondary';
+        }
+
+        function aplicarFiltros() {
+            const tipo = document.getElementById('tipoFiltro').value;
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+
+            let filtrados = alertas;
+
+            if (tipo) {
+                filtrados = filtrados.filter(a => a.tipo === tipo);
+            }
+            if (dataInicio) {
+                filtrados = filtrados.filter(a => new Date(a.dataHora) >= new Date(dataInicio));
+            }
+            if (dataFim) {
+                const fim = new Date(dataFim);
+                fim.setHours(23,59,59);
+                filtrados = filtrados.filter(a => new Date(a.dataHora) <= fim);
+            }
+
+            const container = document.getElementById('alertasContainer');
+            if (filtrados.length === 0) {
+                container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhum alerta encontrado.</div></div>';
+                return;
+            }
+
+            container.innerHTML = filtrados.map(alerta => `
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card alert-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="card-title">${alerta.titulo}</h5>
+                                <span class="badge ${getBadgeClass(alerta.tipo)}">${alerta.tipo.replace('_',' ')}</span>
+                            </div>
+                            <hr>
+                            <div><i class="bi bi-geo-alt"></i> ${alerta.localizacao}</div>
+                            <div><i class="bi bi-clock"></i> ${formatarData(alerta.dataHora)}</div>
+                            <div><i class="bi bi-person"></i> ${alerta.nomeUsuario}</div>
+                            <div class="mb-2">${alerta.descricao || ''}</div>
+                            <hr>
+                            <div class="d-flex gap-2">
+                                <button onclick="confirmarAlerta(${alerta.id})" class="btn btn-outline-success btn-sm flex-grow-1">
+                                    <i class="bi bi-check-circle"></i> Confirmar (${alerta.confirmacoes || 0})
+                                </button>
+                                <button onclick="denunciarAlerta(${alerta.id})" class="btn btn-outline-danger btn-sm flex-grow-1">
+                                    <i class="bi bi-flag"></i> Denunciar (${alerta.denuncias || 0})
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filtrar() {
+            aplicarFiltros();
+        }
+
+        function limparFiltros() {
+            document.getElementById('tipoFiltro').value = '';
+            document.getElementById('dataInicio').value = '';
+            document.getElementById('dataFim').value = '';
+            aplicarFiltros();
+        }
+
+        function confirmarAlerta(id) {
+            if (confirm('Confirmar este alerta como verdadeiro?')) {
+                fetch(`/api/alertas/${id}/confirmar`, { method: 'POST' })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('Alerta confirmado!');
+                            carregarAlertas();
+                        } else {
+                            alert('Erro ao confirmar alerta');
+                        }
+                    });
+            }
+        }
+
+        function denunciarAlerta(id) {
+            if (confirm('Denunciar este alerta como inadequado?')) {
+                fetch(`/api/alertas/${id}/denunciar`, { method: 'POST' })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('Alerta denunciado!');
+                            carregarAlertas();
+                        } else {
+                            alert('Erro ao denunciar alerta');
+                        }
+                    });
+            }
+        }
+
+        carregarAlertas();
+    </script>
+</body>
+</html>

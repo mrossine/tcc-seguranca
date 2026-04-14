@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segurança Fatec ZL - Sistema de Segurança Comunitária</title>
+<link
+	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+	rel="stylesheet">
+<link rel="stylesheet"
+	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<style>
+.hero-section {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+	padding: 100px 0;
+}
+
+.feature-card {
+	transition: transform 0.3s;
+	border: none;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card:hover {
+	transform: translateY(-5px);
+}
+
+.btn-custom {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	border: none;
+	color: white;
+	padding: 12px 30px;
+	border-radius: 25px;
+}
+
+.btn-custom:hover {
+	transform: scale(1.05);
+	color: white;
+}
+</style>
+</head>
+<body>
+	<nav class="navbar navbar-expand-lg navbar-light bg-light">
+		<div class="container">
+			<a class="navbar-brand" href="/"> <i class="bi bi-shield-shaded"></i>
+				Segurança Fatec ZL
+			</a>
+			<button class="navbar-toggler" type="button"
+				data-bs-toggle="collapse" data-bs-target="#navbarNav">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+			<div class="collapse navbar-collapse" id="navbarNav">
+				<ul class="navbar-nav ms-auto">
+					<li class="nav-item"><a class="nav-link" href="/login">Login</a>
+					</li>
+					<li class="nav-item"><a class="nav-link" href="/cadastro">Cadastro</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</nav>
+
+	<div class="hero-section">
+		<div class="container text-center">
+			<h1 class="display-4 mb-4">Tecnologia e Comunidade</h1>
+			<p class="lead mb-4">Fortalecendo a Segurança no Entorno da Fatec
+				Zona Leste</p>
+			<a href="/cadastro" class="btn btn-custom btn-lg">Começar Agora</a>
+		</div>
+	</div>
+
+	<div class="container py-5">
+		<div class="row">
+			<div class="col-md-4 mb-4">
+				<div class="card feature-card h-100">
+					<div class="card-body text-center">
+						<i class="bi bi-exclamation-triangle display-1 text-warning"></i>
+						<h3 class="card-title mt-3">Alertas em Tempo Real</h3>
+						<p class="card-text">Compartilhe e visualize alertas de
+							segurança na região da Fatec Zona Leste</p>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-4 mb-4">
+				<div class="card feature-card h-100">
+					<div class="card-body text-center">
+						<i class="bi bi-car-front display-1 text-success"></i>
+						<h3 class="card-title mt-3">Carona Solidária</h3>
+						<p class="card-text">Combine deslocamentos coletivos com
+							outros estudantes</p>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-4 mb-4">
+				<div class="card feature-card h-100">
+					<div class="card-body text-center">
+						<i class="bi bi-bar-chart display-1 text-info"></i>
+						<h3 class="card-title mt-3">Estatísticas</h3>
+						<p class="card-text">Acompanhe dados sobre ocorrências na
+							região</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<footer class="bg-dark text-white text-center py-4">
+		<div class="container">
+			<p>&copy; 2024 - Tecnologia e Comunidade: Fortalecendo a
+				Segurança no Entorno da Fatec Zona Leste</p>
+		</div>
+	</footer>
+
+	<script
+		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

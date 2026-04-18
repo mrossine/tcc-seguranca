@@ -96,4 +96,9 @@ public class AlertaService {
 		dto.setDataCriacao(alerta.getDataCriacao());
 		return dto;
 	}
+	
+	public List<AlertaResponseDTO> listarAlertasPorUsuario(Usuario usuario) {
+	    return alertaRepository.findByUsuarioOrderByDataCriacaoDesc(usuario)
+	            .stream().map(this::convertToResponseDTO).collect(Collectors.toList());
+	}
 }

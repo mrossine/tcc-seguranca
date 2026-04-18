@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UsuarioDTO {
+	
 	private String nomeCompleto;
 	private String email;
 	private String senha;
@@ -17,4 +18,5 @@ public class UsuarioDTO {
 	private String curso;
 	private Usuario.Periodo periodo;
 	private String fotoPerfil;
+	
 }

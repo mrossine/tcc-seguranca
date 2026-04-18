@@ -126,4 +126,16 @@ public class CaronaService {
 		Carona carona = caronaRepository.findById(id).orElseThrow(() -> new RuntimeException("Carona não encontrada"));
 		return convertToResponseDTO(carona);
 	}
+	
+	public List<CaronaResponseDTO> listarCaronasPorUsuario(Usuario usuario) {
+	    // Caronas oferecidas
+	    List<CaronaResponseDTO> oferecidas = caronaRepository.findByMotoristaOrderByDataCriacaoDesc(usuario)
+	            .stream().map(this::convertToResponseDTO).collect(Collectors.toList());
+	    // Caronas solicitadas (participações)
+	    List<CaronaResponseDTO> solicitadas = participacaoRepository.findByPassageiroOrderByDataSolicitacaoDesc(usuario)
+	            .stream().map(p -> convertToResponseDTO(p.getCarona())).collect(Collectors.toList());
+	    // Unir as duas listas (evitar duplicatas se necessário)
+	    oferecidas.addAll(solicitadas);
+	    return oferecidas;
+	}
 }

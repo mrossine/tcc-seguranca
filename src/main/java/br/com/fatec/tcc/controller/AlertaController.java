@@ -26,6 +26,7 @@ public class AlertaController {
 		model.addAttribute("alerta", new AlertaRequestDTO());
 		return "alertas/novo";
 	}
+	
 
 	@PostMapping("/novo")
 	public String criarAlerta(@ModelAttribute AlertaRequestDTO request, Authentication auth) {

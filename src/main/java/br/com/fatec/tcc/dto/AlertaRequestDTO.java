@@ -1,20 +1,19 @@
 package br.com.fatec.tcc.dto;
 
 import br.com.fatec.tcc.model.Alerta;
-import lombok.Data;
-import org.springframework.format.annotation.DateTimeFormat;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDateTime;
-
-@Data
-public class AlertaRequestDTO {
-	private String titulo;
-	private String descricao;
-	private Alerta.TipoAlerta tipo;
-	private String localizacao;
-	private Double latitude;
-	private Double longitude;
-
-	@DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
-	private LocalDateTime dataHora;
+public record AlertaRequestDTO(
+	    String titulo,           // agora opcional (pode ser null)
+	    String descricao,        // opcional
+	    @NotNull(message = "Tipo de ocorrência é obrigatório") Alerta.TipoAlerta tipo,
+	    @NotBlank(message = "Localização descritiva é obrigatória") String localizacao,
+	    Double latitude,
+	    Double longitude
+	) {
+	
+	public static AlertaRequestDTO empty() {
+        return new AlertaRequestDTO(null, null, null, null, null, null);
+    }
 }

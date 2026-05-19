@@ -23,15 +23,15 @@ public class AlertaController {
 
 	@GetMapping("/novo")
 	public String novoAlerta(Model model) {
-		model.addAttribute("alerta", new AlertaRequestDTO());
+		model.addAttribute("alerta", AlertaRequestDTO.empty());
 		return "alertas/novo";
 	}
 	
 
 	@PostMapping("/novo")
 	public String criarAlerta(@ModelAttribute AlertaRequestDTO request, Authentication auth) {
-		alertaService.criarAlerta(request, auth.getName());
-		return "redirect:/alertas";
+	    alertaService.criarAlerta(request, auth.getName());
+	    return "redirect:/alertas";
 	}
 
 	@PostMapping("/{id}/confirmar")

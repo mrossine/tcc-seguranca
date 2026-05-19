@@ -103,23 +103,20 @@ public class CaronaService {
 	}
 
 	private CaronaResponseDTO convertToResponseDTO(Carona carona) {
-		CaronaResponseDTO dto = new CaronaResponseDTO();
-		dto.setId(carona.getId());
-		dto.setMotoristaNome(carona.getMotorista().getNomeCompleto());
-		dto.setOrigem(carona.getOrigem());
-		dto.setDestino(carona.getDestino());
-		dto.setHorarioSaida(carona.getHorarioSaida());
-		dto.setVagasDisponiveis(carona.getVagasDisponiveis());
-		dto.setVeiculoModelo(carona.getVeiculoModelo());
-		dto.setVeiculoPlaca(carona.getVeiculoPlaca());
-		dto.setObservacoes(carona.getObservacoes());
-		dto.setStatus(carona.getStatus());
-
-		long vagasOcupadas = participacaoRepository.countByCaronaAndStatus(carona,
-				ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
-		dto.setVagasOcupadas((int) vagasOcupadas);
-
-		return dto;
+	    long vagasOcupadas = participacaoRepository.countByCaronaAndStatus(carona, ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
+	    return new CaronaResponseDTO(
+	        carona.getId(),
+	        carona.getMotorista().getNomeCompleto(),
+	        carona.getOrigem(),
+	        carona.getDestino(),
+	        carona.getHorarioSaida(),
+	        carona.getVagasDisponiveis(),
+	        (int) vagasOcupadas,
+	        carona.getVeiculoModelo(),
+	        carona.getVeiculoPlaca(),
+	        carona.getObservacoes(),
+	        carona.getStatus()
+	    );
 	}
 
 	public CaronaResponseDTO buscarPorId(Long id) {

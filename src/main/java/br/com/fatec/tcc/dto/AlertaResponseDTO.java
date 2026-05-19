@@ -1,23 +1,20 @@
 package br.com.fatec.tcc.dto;
 
 import br.com.fatec.tcc.model.Alerta;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 
-@Data
-public class AlertaResponseDTO {
-	private Long id;
-	private String titulo;
-	private String descricao;
-	private Alerta.TipoAlerta tipo;
-	private String localizacao;
-	private Double latitude;
-	private Double longitude;
-	private LocalDateTime dataHora;
-	private Alerta.StatusAlerta status;
-	private String nomeUsuario;
-	private Integer confirmacoes;
-	private Integer denuncias;
-	private LocalDateTime dataCriacao;
-}
+public record AlertaResponseDTO(
+    Long id,
+    String titulo,
+    String descricao,
+    Alerta.TipoAlerta tipo,
+    String localizacao,
+    Double latitude,
+    Double longitude,
+    LocalDateTime dataHora,
+    Alerta.StatusAlerta status,
+    String nomeUsuario,
+    Integer confirmacoes,
+    Integer denuncias,
+    LocalDateTime dataCriacao
+) {}

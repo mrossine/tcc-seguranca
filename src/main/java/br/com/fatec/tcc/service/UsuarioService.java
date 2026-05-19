@@ -37,28 +37,28 @@ public class UsuarioService implements UserDetailsService {
 	@Transactional
 	public Usuario cadastrar(UsuarioDTO usuarioDTO) {
 		log.info("=== INICIANDO CADASTRO ===");
-		log.info("Email: {}", usuarioDTO.getEmail());
-		log.info("Matrícula: {}", usuarioDTO.getMatricula());
+		log.info("Email: {}", usuarioDTO.email());
+		log.info("Matrícula: {}", usuarioDTO.matricula());
 
 		// Verificar se email já existe
-		if (usuarioRepository.existsByEmail(usuarioDTO.getEmail())) {
-			log.warn("Email já cadastrado: {}", usuarioDTO.getEmail());
+		if (usuarioRepository.existsByEmail(usuarioDTO.email())) {
+			log.warn("Email já cadastrado: {}", usuarioDTO.email());
 			throw new RuntimeException("E-mail já cadastrado");
 		}
 
 		// Verificar se matrícula já existe
-		if (usuarioRepository.existsByMatricula(usuarioDTO.getMatricula())) {
-			log.warn("Matrícula já cadastrada: {}", usuarioDTO.getMatricula());
+		if (usuarioRepository.existsByMatricula(usuarioDTO.matricula())) {
+			log.warn("Matrícula já cadastrada: {}", usuarioDTO.matricula());
 			throw new RuntimeException("Matrícula já cadastrada");
 		}
 
 		Usuario usuario = new Usuario();
-		usuario.setNomeCompleto(usuarioDTO.getNomeCompleto());
-		usuario.setEmail(usuarioDTO.getEmail());
-		usuario.setSenha(passwordEncoder.encode(usuarioDTO.getSenha()));
-		usuario.setMatricula(usuarioDTO.getMatricula());
-		usuario.setCurso(usuarioDTO.getCurso());
-		usuario.setPeriodo(usuarioDTO.getPeriodo());
+		usuario.setNomeCompleto(usuarioDTO.nomeCompleto());
+		usuario.setEmail(usuarioDTO.email());
+		usuario.setSenha(passwordEncoder.encode(usuarioDTO.senha()));
+		usuario.setMatricula(usuarioDTO.matricula());
+		usuario.setCurso(usuarioDTO.curso());
+		usuario.setPeriodo(usuarioDTO.periodo());
 		usuario.setAtivo(true);
 		usuario.setRole(Usuario.Role.USER);
 
@@ -73,12 +73,12 @@ public class UsuarioService implements UserDetailsService {
 		Usuario usuario = usuarioRepository.findById(id)
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-		usuario.setNomeCompleto(usuarioDTO.getNomeCompleto());
-		usuario.setCurso(usuarioDTO.getCurso());
-		usuario.setPeriodo(usuarioDTO.getPeriodo());
+		usuario.setNomeCompleto(usuarioDTO.nomeCompleto());
+		usuario.setCurso(usuarioDTO.curso());
+		usuario.setPeriodo(usuarioDTO.periodo());
 
-		if (usuarioDTO.getFotoPerfil() != null) {
-			usuario.setFotoPerfil(usuarioDTO.getFotoPerfil());
+		if (usuarioDTO.fotoPerfil() != null) {
+			usuario.setFotoPerfil(usuarioDTO.fotoPerfil());
 		}
 
 		return usuarioRepository.save(usuario);

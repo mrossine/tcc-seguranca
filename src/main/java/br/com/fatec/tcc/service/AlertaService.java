@@ -25,13 +25,13 @@ public class AlertaService {
 		Usuario usuario = usuarioService.findUserByUsername(email); // ANTES era loadUserByUsername
 
 		Alerta alerta = new Alerta();
-		alerta.setTitulo(request.getTitulo());
-		alerta.setDescricao(request.getDescricao());
-		alerta.setTipo(request.getTipo());
-		alerta.setLocalizacao(request.getLocalizacao());
-		alerta.setLatitude(request.getLatitude());
-		alerta.setLongitude(request.getLongitude());
-		alerta.setDataHora(request.getDataHora() != null ? request.getDataHora() : LocalDateTime.now());
+		alerta.setTitulo(request.titulo());
+		alerta.setDescricao(request.descricao());
+		alerta.setTipo(request.tipo());
+		alerta.setLocalizacao(request.localizacao());
+		alerta.setLatitude(request.latitude());
+		alerta.setLongitude(request.longitude());
+		alerta.setDataHora(LocalDateTime.now());
 		alerta.setUsuario(usuario);
 		alerta.setStatus(Alerta.StatusAlerta.ATIVO);
 
@@ -79,26 +79,26 @@ public class AlertaService {
 		alertaRepository.delete(alerta);
 	}
 
-	private AlertaResponseDTO convertToResponseDTO(Alerta alerta) {
-		AlertaResponseDTO dto = new AlertaResponseDTO();
-		dto.setId(alerta.getId());
-		dto.setTitulo(alerta.getTitulo());
-		dto.setDescricao(alerta.getDescricao());
-		dto.setTipo(alerta.getTipo());
-		dto.setLocalizacao(alerta.getLocalizacao());
-		dto.setLatitude(alerta.getLatitude());
-		dto.setLongitude(alerta.getLongitude());
-		dto.setDataHora(alerta.getDataHora());
-		dto.setStatus(alerta.getStatus());
-		dto.setNomeUsuario(alerta.getUsuario().getNomeCompleto());
-		dto.setConfirmacoes(alerta.getConfirmacoes());
-		dto.setDenuncias(alerta.getDenuncias());
-		dto.setDataCriacao(alerta.getDataCriacao());
-		return dto;
-	}
-	
 	public List<AlertaResponseDTO> listarAlertasPorUsuario(Usuario usuario) {
 	    return alertaRepository.findByUsuarioOrderByDataCriacaoDesc(usuario)
 	            .stream().map(this::convertToResponseDTO).collect(Collectors.toList());
+	}
+	
+	private AlertaResponseDTO convertToResponseDTO(Alerta alerta) {
+	    return new AlertaResponseDTO(
+	        alerta.getId(),
+	        alerta.getTitulo(),
+	        alerta.getDescricao(),
+	        alerta.getTipo(),
+	        alerta.getLocalizacao(),
+	        alerta.getLatitude(),
+	        alerta.getLongitude(),
+	        alerta.getDataHora(),
+	        alerta.getStatus(),
+	        alerta.getUsuario().getNomeCompleto(),
+	        alerta.getConfirmacoes(),
+	        alerta.getDenuncias(),
+	        alerta.getDataCriacao()
+	    );
 	}
 }

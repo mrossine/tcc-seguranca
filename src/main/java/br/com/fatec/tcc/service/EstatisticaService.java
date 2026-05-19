@@ -5,7 +5,6 @@ import br.com.fatec.tcc.model.Alerta;
 import br.com.fatec.tcc.model.Carona;
 import br.com.fatec.tcc.repository.AlertaRepository;
 import br.com.fatec.tcc.repository.CaronaRepository;
-import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
 import br.com.fatec.tcc.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,30 +19,28 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class EstatisticaService {
-    
+
     private final AlertaRepository alertaRepository;
     private final CaronaRepository caronaRepository;
     private final UsuarioRepository usuarioRepository;
 
     public EstatisticasDTO getEstatisticas() {
-        EstatisticasDTO dto = new EstatisticasDTO();
-        
         try {
             // Total de usuários
-            dto.setTotalUsuarios(usuarioRepository.count());
-            log.debug("Total de usuários: {}", dto.getTotalUsuarios());
-            
+            Long totalUsuarios = usuarioRepository.count();
+            log.debug("Total de usuários: {}", totalUsuarios);
+
             // Total de alertas ativos
             List<Alerta> alertasAtivos = alertaRepository.findByStatusOrderByDataCriacaoDesc(Alerta.StatusAlerta.ATIVO);
-            dto.setTotalAlertasAtivos((long) alertasAtivos.size());
-            log.debug("Total de alertas ativos: {}", dto.getTotalAlertasAtivos());
-            
+            Long totalAlertasAtivos = (long) alertasAtivos.size();
+            log.debug("Total de alertas ativos: {}", totalAlertasAtivos);
+
             // Total de caronas disponíveis
             List<Carona> caronasDisponiveis = caronaRepository.findByStatusAndHorarioSaidaAfter(
-                Carona.StatusCarona.ABERTA, LocalDateTime.now());
-            dto.setTotalCaronasDisponiveis((long) caronasDisponiveis.size());
-            log.debug("Total de caronas disponíveis: {}", dto.getTotalCaronasDisponiveis());
-            
+                    Carona.StatusCarona.ABERTA, LocalDateTime.now());
+            Long totalCaronasDisponiveis = (long) caronasDisponiveis.size();
+            log.debug("Total de caronas disponíveis: {}", totalCaronasDisponiveis);
+
             // Alertas por tipo
             List<Object[]> alertasPorTipo = alertaRepository.countByTipo();
             Map<String, Long> alertasPorTipoMap = new HashMap<>();
@@ -56,8 +53,7 @@ public class EstatisticaService {
                     }
                 }
             }
-            dto.setAlertasPorTipo(alertasPorTipoMap);
-            
+
             // Alertas por hora
             List<Object[]> alertasPorHora = alertaRepository.countByHour();
             Map<Integer, Long> alertasPorHoraMap = new HashMap<>();
@@ -70,18 +66,20 @@ public class EstatisticaService {
                     }
                 }
             }
-            dto.setAlertasPorHora(alertasPorHoraMap);
-            
+
+            // Retorna o record com todos os valores
+            return new EstatisticasDTO(
+                    totalUsuarios,
+                    totalAlertasAtivos,
+                    totalCaronasDisponiveis,
+                    alertasPorTipoMap,
+                    alertasPorHoraMap
+            );
+
         } catch (Exception e) {
             log.error("Erro ao carregar estatísticas: {}", e.getMessage(), e);
-            // Retorna DTO com valores padrão em caso de erro
-            dto.setTotalUsuarios(0L);
-            dto.setTotalAlertasAtivos(0L);
-            dto.setTotalCaronasDisponiveis(0L);
-            dto.setAlertasPorTipo(new HashMap<>());
-            dto.setAlertasPorHora(new HashMap<>());
+            // Retorna record com valores padrão (vazios) em caso de erro
+            return new EstatisticasDTO(0L, 0L, 0L, new HashMap<>(), new HashMap<>());
         }
-        
-        return dto;
     }
 }

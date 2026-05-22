@@ -108,16 +108,25 @@ public class UsuarioService implements UserDetailsService {
 		return usuarioRepository.existsByEmail(email);
 	}
 
+	public List<UsuarioDTO> listarTodosUsuarios() {
+		return usuarioRepository.findAll().stream()
+				.map(u -> new UsuarioDTO(
+						u.getNomeCompleto(),
+						u.getEmail(),
+						null,
+						null,
+						u.getMatricula(),
+						u.getCurso(),
+						u.getPeriodo(),
+						u.getFotoPerfil()
+				))
+				.collect(Collectors.toList());
+	}
+
 	@Transactional
 	public void deletarUsuario(Long id) {
 		Usuario usuario = usuarioRepository.findById(id)
 				.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 		usuarioRepository.delete(usuario);
-	}
-
-	public List<UsuarioDTO> listarTodosUsuarios() {
-		return usuarioRepository.findAll().stream()
-				.map(u -> new UsuarioDTO(u.getNomeCompleto(), u.getEmail(), null, null, u.getMatricula(), u.getCurso(), u.getPeriodo(), u.getFotoPerfil()))
-				.collect(Collectors.toList());
 	}
 }

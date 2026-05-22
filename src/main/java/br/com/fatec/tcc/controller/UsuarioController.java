@@ -66,6 +66,13 @@ public class UsuarioController {
         return caronaService.listarCaronasPorUsuario(usuario); // crie no CaronaService
     }
 
+    @GetMapping("/api/admin/usuarios")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UsuarioDTO> listarUsuarios() {
+        return usuarioService.listarTodosUsuarios();
+    }
+
     @DeleteMapping("/api/admin/usuarios/{id}")
     @ResponseBody
     @PreAuthorize("hasRole('ADMIN')")
@@ -76,12 +83,5 @@ public class UsuarioController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-    }
-
-    @GetMapping("/api/admin/usuarios")
-    @ResponseBody
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<UsuarioDTO> listarUsuarios() {
-        return usuarioService.listarTodosUsuarios();
     }
 }

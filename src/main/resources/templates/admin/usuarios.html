@@ -24,6 +24,9 @@
             color: white;
             border-radius: 10px;
         }
+        .table-responsive {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -49,14 +52,25 @@
         <!-- Main Content -->
         <div class="col-md-9 col-lg-10 px-4 py-3">
             <h2><i class="bi bi-people"></i> Gerenciar Usuários</h2>
-            <table class="table table-striped">
-                <thead>
-                <tr><th>ID</th><th>Nome</th><th>Email</th><th>Curso</th><th>Ação</th></tr>
-                </thead>
-                <tbody id="listaUsuarios"></tbody>
-            </table>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Curso</th>
+                        <th>Ação</th>
+                    </tr>
+                    </thead>
+                    <tbody id="listaUsuarios">
+                    <tr><td colspan="4" class="text-center">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
             <button class="btn btn-info mt-3" onclick="totalProcedure()">
-                <i class="bi bi-database"></i> Total de usuários (via Procedure)
+                <i class="bi bi-database"></i> Total de usuários
             </button>
             <div id="resultProc" class="mt-2"></div>
         </div>
@@ -65,34 +79,66 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Carregar lista de usuários
-    fetch('/api/admin/usuarios')
-        .then(res => res.json())
-        .then(users => {
-            const tbody = document.getElementById('listaUsuarios');
-            tbody.innerHTML = users.map(u => `
-                <tr>
-                    <td>${u.id}</td>
-                    <td>${u.nomeCompleto}</td>
-                    <td>${u.email}</td>
-                    <td>${u.curso}</td>
-                    <td><button onclick="excluir(${u.id})" class="btn btn-danger btn-sm">Excluir</button></td>
-                </tr>
-            `).join('');
-        });
-
-    function excluir(id) {
-        if (confirm('Excluir usuário permanentemente?'))
-            fetch(`/api/admin/usuarios/${id}`, {method: 'DELETE'})
-                .then(() => location.reload());
+    function carregarUsuarios() {
+        fetch('/api/admin/usuarios')
+            .then(res => {
+                if (!res.ok) throw new Error('Erro ao carregar usuários');
+                return res.json();
+            })
+            .then(users => {
+                const tbody = document.getElementById('listaUsuarios');
+                if (!users || users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum usuário encontrado</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>${u.nomeCompleto || ''}</td>
+                        <td>${u.email || ''}</td>
+                        <td>${u.curso || ''}</td>
+                        <td>
+                            <button onclick="excluir(${u.id})" class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash"></i> Excluir
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                document.getElementById('listaUsuarios').innerHTML = '<tr><td colspan="4" class="text-danger">Erro ao carregar usuários</td></tr>';
+            });
     }
 
-    // Stored procedure
+    function excluir(id) {
+        if (confirm('⚠️ Excluir usuário permanentemente? Essa ação não pode ser desfeita.')) {
+            fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' })
+                .then(res => {
+                    if (res.ok) {
+                        alert('Usuário excluído com sucesso!');
+                        carregarUsuarios();
+                    } else {
+                        return res.json().then(err => { throw new Error(err.error || 'Erro ao excluir'); });
+                    }
+                })
+                .catch(error => {
+                    alert('Erro: ' + error.message);
+                });
+        }
+    }
+
     function totalProcedure() {
         fetch('/api/admin/sp-total-usuarios')
             .then(res => res.json())
-            .then(data => document.getElementById('resultProc').innerHTML = `<strong>Total de usuários: ${data.total}</strong>`);
+            .then(data => {
+                document.getElementById('resultProc').innerHTML = `<div class="alert alert-success"><strong>Total de usuários: ${data.total}</strong></div>`;
+            })
+            .catch(error => {
+                document.getElementById('resultProc').innerHTML = `<div class="alert alert-danger">Erro ao chamar procedure</div>`;
+            });
     }
+
+    carregarUsuarios();
 </script>
 </body>
 </html>

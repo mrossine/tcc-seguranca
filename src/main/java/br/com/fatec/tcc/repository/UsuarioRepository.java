@@ -2,8 +2,10 @@ package br.com.fatec.tcc.repository;
 
 import br.com.fatec.tcc.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -15,4 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	boolean existsByEmail(String email);
 
 	boolean existsByMatricula(String matricula);
+
+	@Query("SELECT u.periodo, COUNT(u) FROM Usuario u GROUP BY u.periodo")
+    List<Object[]> countByPeriodo();
+
 }

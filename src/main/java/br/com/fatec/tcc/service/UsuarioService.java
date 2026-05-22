@@ -12,6 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -103,5 +106,18 @@ public class UsuarioService implements UserDetailsService {
 
 	public boolean checkEmailExists(String email) {
 		return usuarioRepository.existsByEmail(email);
+	}
+
+	@Transactional
+	public void deletarUsuario(Long id) {
+		Usuario usuario = usuarioRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+		usuarioRepository.delete(usuario);
+	}
+
+	public List<UsuarioDTO> listarTodosUsuarios() {
+		return usuarioRepository.findAll().stream()
+				.map(u -> new UsuarioDTO(u.getNomeCompleto(), u.getEmail(), null, null, u.getMatricula(), u.getCurso(), u.getPeriodo(), u.getFotoPerfil()))
+				.collect(Collectors.toList());
 	}
 }

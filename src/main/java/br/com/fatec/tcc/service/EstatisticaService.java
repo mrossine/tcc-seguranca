@@ -3,6 +3,7 @@ package br.com.fatec.tcc.service;
 import br.com.fatec.tcc.dto.EstatisticasDTO;
 import br.com.fatec.tcc.model.Alerta;
 import br.com.fatec.tcc.model.Carona;
+import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.repository.AlertaRepository;
 import br.com.fatec.tcc.repository.CaronaRepository;
 import br.com.fatec.tcc.repository.UsuarioRepository;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -81,5 +83,14 @@ public class EstatisticaService {
             // Retorna record com valores padrão (vazios) em caso de erro
             return new EstatisticasDTO(0L, 0L, 0L, new HashMap<>(), new HashMap<>());
         }
+    }
+
+    public Map<String, Long> contarUsuariosPorPeriodo() {
+        List<Object[]> results = usuarioRepository.countByPeriodo();
+        return results.stream()
+                .collect(Collectors.toMap(
+                        row -> ((Usuario.Periodo) row[0]).name(),
+                        row -> (Long) row[1]
+                ));
     }
 }

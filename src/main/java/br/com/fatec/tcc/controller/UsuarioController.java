@@ -1,16 +1,14 @@
 package br.com.fatec.tcc.controller;
 
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import br.com.fatec.tcc.dto.AlertaResponseDTO;
 import br.com.fatec.tcc.dto.CaronaResponseDTO;
@@ -66,5 +64,24 @@ public class UsuarioController {
     public List<CaronaResponseDTO> historicoCaronas(Authentication auth) {
         Usuario usuario = usuarioService.findUserByUsername(auth.getName());
         return caronaService.listarCaronasPorUsuario(usuario); // crie no CaronaService
+    }
+
+    @DeleteMapping("/api/admin/usuarios/{id}")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deletarUsuario(@PathVariable Long id) {
+        try {
+            usuarioService.deletarUsuario(id);
+            return ResponseEntity.ok().body(Map.of("message", "Usuário excluído com sucesso"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/api/admin/usuarios")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<UsuarioDTO> listarUsuarios() {
+        return usuarioService.listarTodosUsuarios();
     }
 }

@@ -70,8 +70,11 @@
 					</a> <a href="/estatisticas"> <i class="bi bi-bar-chart"></i>
 						Estatísticas
 					</a> <a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
-					</a> <a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
 					</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
+					<i class="bi bi-shield-lock"></i> Admin
+					</a>
+					<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
 				</nav>
 			</div>
 

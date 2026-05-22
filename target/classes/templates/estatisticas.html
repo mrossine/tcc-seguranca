@@ -70,8 +70,10 @@
 					</a> 
 					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
 					</a> 
-					<a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
+					<i class="bi bi-shield-lock"></i> Admin
 					</a>
+					<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
 				</nav>
 			</div>
 
@@ -157,6 +159,16 @@
 						</div>
 					</div>
 				</div>
+
+				<!-- Gráfico de usuários por período -->
+				<div class="card mt-4">
+					<div class="card-header">
+						<h5 class="mb-0">Usuários por Período</h5>
+					</div>
+					<div class="card-body">
+						<canvas id="periodoChart" height="200"></canvas>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -204,6 +216,23 @@
                 }
             })
             .catch(error => console.error('Erro ao carregar estatísticas:', error));
+
+		// Gráfico de usuários por período
+		fetch('/api/estatisticas/usuarios-por-periodo')
+				.then(res => res.json())
+				.then(data => {
+					new Chart(document.getElementById('periodoChart'), {
+						type: 'bar',
+						data: {
+							labels: Object.keys(data),
+							datasets: [{
+								label: 'Quantidade de usuários',
+								data: Object.values(data),
+								backgroundColor: '#764ba2'
+							}]
+						}
+					});
+				});
     </script>
 </body>
 </html>

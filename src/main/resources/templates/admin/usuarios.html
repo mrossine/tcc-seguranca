@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Usuários</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 px-0 sidebar">
+            <div class="text-center py-4">
+                <i class="bi bi-shield-shaded display-3"></i>
+                <h4 class="mt-2">Segurança Fatec ZL</h4>
+            </div>
+            <nav class="nav flex-column px-3">
+                <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+                <a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+                <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+                <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+                <a href="/admin/usuarios" class="active"><i class="bi bi-shield-lock"></i> Admin</a>
+                <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 px-4 py-3">
+            <h2><i class="bi bi-people"></i> Gerenciar Usuários</h2>
+            <table class="table table-striped">
+                <thead>
+                <tr><th>ID</th><th>Nome</th><th>Email</th><th>Curso</th><th>Ação</th></tr>
+                </thead>
+                <tbody id="listaUsuarios"></tbody>
+            </table>
+            <button class="btn btn-info mt-3" onclick="totalProcedure()">
+                <i class="bi bi-database"></i> Total de usuários (via Procedure)
+            </button>
+            <div id="resultProc" class="mt-2"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Carregar lista de usuários
+    fetch('/api/admin/usuarios')
+        .then(res => res.json())
+        .then(users => {
+            const tbody = document.getElementById('listaUsuarios');
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.nomeCompleto}</td>
+                    <td>${u.email}</td>
+                    <td>${u.curso}</td>
+                    <td><button onclick="excluir(${u.id})" class="btn btn-danger btn-sm">Excluir</button></td>
+                </tr>
+            `).join('');
+        });
+
+    function excluir(id) {
+        if (confirm('Excluir usuário permanentemente?'))
+            fetch(`/api/admin/usuarios/${id}`, {method: 'DELETE'})
+                .then(() => location.reload());
+    }
+
+    // Stored procedure
+    function totalProcedure() {
+        fetch('/api/admin/sp-total-usuarios')
+            .then(res => res.json())
+            .then(data => document.getElementById('resultProc').innerHTML = `<strong>Total de usuários: ${data.total}</strong>`);
+    }
+</script>
+</body>
+</html>

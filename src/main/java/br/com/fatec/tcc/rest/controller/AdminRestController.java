@@ -7,8 +7,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -22,8 +25,15 @@ public class AdminRestController {
 
     // 1. Listar todos os usuários
     @GetMapping("/usuarios")
-    public List<UsuarioDTO> listarUsuarios() {
-        return usuarioService.listarTodosUsuarios();
+    public Page<UsuarioDTO> listarUsuariosPaginado(
+            @RequestParam(required = false) String nome,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String curso,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
+        return usuarioService.listarUsuariosPaginado(nome, email, curso, pageable);
     }
 
     // 2. Deletar usuário por ID

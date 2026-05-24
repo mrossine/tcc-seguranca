@@ -13,36 +13,40 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AlertaController {
 
-	private final AlertaService alertaService;
+    private final AlertaService alertaService;
 
-	@GetMapping
-	public String listarAlertas(Model model) {
-		model.addAttribute("alertas", alertaService.listarAlertasAtivos());
-		return "alertas/lista";
-	}
+    @GetMapping
+    public String listarAlertas(Model model) {
+        return "alertas/lista";
+    }
 
-	@GetMapping("/novo")
-	public String novoAlerta(Model model) {
-		model.addAttribute("alerta", AlertaRequestDTO.empty());
-		return "alertas/novo";
-	}
-	
+    @GetMapping("/novo")
+    public String novoAlerta(Model model) {
+        model.addAttribute("alerta", AlertaRequestDTO.empty());
+        return "alertas/novo";
+    }
 
-	@PostMapping("/novo")
-	public String criarAlerta(@ModelAttribute AlertaRequestDTO request, Authentication auth) {
-	    alertaService.criarAlerta(request, auth.getName());
-	    return "redirect:/alertas";
-	}
+    @PostMapping("/novo")
+    public String criarAlerta(@ModelAttribute AlertaRequestDTO request, Authentication auth) {
+        alertaService.criarAlerta(request, auth.getName());
+        return "redirect:/alertas";
+    }
 
-	@PostMapping("/{id}/confirmar")
-	public String confirmarAlerta(@PathVariable Long id) {
-		alertaService.confirmarAlerta(id);
-		return "redirect:/alertas";
-	}
+    @PostMapping("/{id}/confirmar")
+    public String confirmarAlerta(@PathVariable Long id) {
+        alertaService.confirmarAlerta(id);
+        return "redirect:/alertas";
+    }
 
-	@PostMapping("/{id}/denunciar")
-	public String denunciarAlerta(@PathVariable Long id) {
-		alertaService.denunciarAlerta(id);
-		return "redirect:/alertas";
-	}
+    @PostMapping("/{id}/denunciar")
+    public String denunciarAlerta(@PathVariable Long id) {
+        alertaService.denunciarAlerta(id);
+        return "redirect:/alertas";
+    }
+
+    @PostMapping("/{id}/remover")
+    public String removerAlerta(@PathVariable Long id, Authentication auth) {
+        alertaService.removerAlerta(id, auth.getName());
+        return "redirect:/alertas";
+    }
 }

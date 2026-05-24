@@ -17,88 +17,103 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AlertaService {
 
-	private final AlertaRepository alertaRepository;
-	private final UsuarioService usuarioService;
+    private final AlertaRepository alertaRepository;
+    private final UsuarioService usuarioService;
 
-	@Transactional
-	public AlertaResponseDTO criarAlerta(AlertaRequestDTO request, String email) {
-		Usuario usuario = usuarioService.findUserByUsername(email); // ANTES era loadUserByUsername
+    @Transactional
+    public AlertaResponseDTO criarAlerta(AlertaRequestDTO request, String email) {
+        Usuario usuario = usuarioService.findUserByUsername(email);
 
-		Alerta alerta = new Alerta();
-		alerta.setTitulo(request.titulo());
-		alerta.setDescricao(request.descricao());
-		alerta.setTipo(request.tipo());
-		alerta.setLocalizacao(request.localizacao());
-		alerta.setLatitude(request.latitude());
-		alerta.setLongitude(request.longitude());
-		alerta.setDataHora(LocalDateTime.now());
-		alerta.setUsuario(usuario);
-		alerta.setStatus(Alerta.StatusAlerta.ATIVO);
+        Alerta alerta = new Alerta();
+        alerta.setTitulo(request.titulo());
+        alerta.setDescricao(request.descricao());
+        alerta.setTipo(request.tipo());
+        alerta.setLocalizacao(request.localizacao());
+        alerta.setLatitude(request.latitude());
+        alerta.setLongitude(request.longitude());
+        alerta.setDataHora(LocalDateTime.now());
+        alerta.setUsuario(usuario);
+        alerta.setStatus(Alerta.StatusAlerta.ATIVO);
 
-		Alerta saved = alertaRepository.save(alerta);
-		return convertToResponseDTO(saved);
-	}
+        Alerta saved = alertaRepository.save(alerta);
+        return convertToResponseDTO(saved, usuario);
+    }
 
-	public List<AlertaResponseDTO> listarAlertasAtivos() {
-		return alertaRepository.findByStatusOrderByDataCriacaoDesc(Alerta.StatusAlerta.ATIVO).stream()
-				.map(this::convertToResponseDTO).collect(Collectors.toList());
-	}
+    /**
+     * Lista TODOS os alertas ativos (sem filtro por usuário).
+     * Todos os usuários autenticados veem todos os alertas.
+     */
+    public List<AlertaResponseDTO> listarAlertasAtivos(String emailLogado) {
+        Usuario usuarioLogado = usuarioService.findUserByUsername(emailLogado);
+        List<Alerta> alertas = alertaRepository.findByStatusOrderByDataCriacaoDesc(Alerta.StatusAlerta.ATIVO);
+        return alertas.stream()
+                .map(alerta -> convertToResponseDTO(alerta, usuarioLogado))
+                .collect(Collectors.toList());
+    }
 
-	@Transactional
-	public void confirmarAlerta(Long id) {
-		Alerta alerta = alertaRepository.findById(id).orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
-		alerta.setConfirmacoes(alerta.getConfirmacoes() + 1);
-		alertaRepository.save(alerta);
-	}
+    @Transactional
+    public void confirmarAlerta(Long id) {
+        Alerta alerta = alertaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        alerta.setConfirmacoes(alerta.getConfirmacoes() + 1);
+        alertaRepository.save(alerta);
+    }
 
-	@Transactional
-	public void denunciarAlerta(Long id) {
-		Alerta alerta = alertaRepository.findById(id).orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
-		alerta.setDenuncias(alerta.getDenuncias() + 1);
+    @Transactional
+    public void denunciarAlerta(Long id) {
+        Alerta alerta = alertaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        alerta.setDenuncias(alerta.getDenuncias() + 1);
+        if (alerta.getDenuncias() >= 5) {
+            alerta.setStatus(Alerta.StatusAlerta.DENUNCIADO);
+        }
+        alertaRepository.save(alerta);
+    }
 
-		// Se tiver mais de 5 denúncias, marcar como denunciado
-		if (alerta.getDenuncias() >= 5) {
-			alerta.setStatus(Alerta.StatusAlerta.DENUNCIADO);
-		}
+    @Transactional
+    public void removerAlerta(Long id, String email) {
+        Alerta alerta = alertaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        Usuario usuario = usuarioService.findUserByUsername(email);
+        
+        // Permissão: autor do alerta, moderador ou admin
+        if (!alerta.getUsuario().getId().equals(usuario.getId()) &&
+            usuario.getRole() != Usuario.Role.MODERATOR &&
+            usuario.getRole() != Usuario.Role.ADMIN) {
+            throw new RuntimeException("Sem permissão para remover este alerta");
+        }
+        alertaRepository.delete(alerta);
+    }
 
-		alertaRepository.save(alerta);
-	}
+    public List<AlertaResponseDTO> listarAlertasPorUsuario(Usuario usuario) {
+        return alertaRepository.findByUsuarioOrderByDataCriacaoDesc(usuario)
+                .stream()
+                .map(alerta -> convertToResponseDTO(alerta, usuario))
+                .collect(Collectors.toList());
+    }
 
-	@Transactional
-	public void removerAlerta(Long id, String email) {
-		Alerta alerta = alertaRepository.findById(id).orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
-
-		Usuario usuario = usuarioService.findUserByUsername(email);
-
-		// Apenas o autor ou moderador/admin pode remover
-		if (!alerta.getUsuario().getId().equals(usuario.getId()) && usuario.getRole() != Usuario.Role.MODERATOR
-				&& usuario.getRole() != Usuario.Role.ADMIN) {
-			throw new RuntimeException("Sem permissão para remover este alerta");
-		}
-
-		alertaRepository.delete(alerta);
-	}
-
-	public List<AlertaResponseDTO> listarAlertasPorUsuario(Usuario usuario) {
-	    return alertaRepository.findByUsuarioOrderByDataCriacaoDesc(usuario)
-	            .stream().map(this::convertToResponseDTO).collect(Collectors.toList());
-	}
-	
-	private AlertaResponseDTO convertToResponseDTO(Alerta alerta) {
-	    return new AlertaResponseDTO(
-	        alerta.getId(),
-	        alerta.getTitulo(),
-	        alerta.getDescricao(),
-	        alerta.getTipo(),
-	        alerta.getLocalizacao(),
-	        alerta.getLatitude(),
-	        alerta.getLongitude(),
-	        alerta.getDataHora(),
-	        alerta.getStatus(),
-	        alerta.getUsuario().getNomeCompleto(),
-	        alerta.getConfirmacoes(),
-	        alerta.getDenuncias(),
-	        alerta.getDataCriacao()
-	    );
-	}
+    private AlertaResponseDTO convertToResponseDTO(Alerta alerta, Usuario usuarioLogado) {
+        boolean podeExcluir = false;
+        if (usuarioLogado != null) {
+            podeExcluir = alerta.getUsuario().getId().equals(usuarioLogado.getId()) ||
+                          usuarioLogado.getRole() == Usuario.Role.ADMIN ||
+                          usuarioLogado.getRole() == Usuario.Role.MODERATOR;
+        }
+        return new AlertaResponseDTO(
+            alerta.getId(),
+            alerta.getTitulo(),
+            alerta.getDescricao(),
+            alerta.getTipo(),
+            alerta.getLocalizacao(),
+            alerta.getLatitude(),
+            alerta.getLongitude(),
+            alerta.getDataHora(),
+            alerta.getStatus(),
+            alerta.getUsuario().getNomeCompleto(),
+            alerta.getConfirmacoes(),
+            alerta.getDenuncias(),
+            alerta.getDataCriacao(),
+            podeExcluir
+        );
+    }
 }

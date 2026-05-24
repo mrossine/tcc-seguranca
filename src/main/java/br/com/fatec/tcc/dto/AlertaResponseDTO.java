@@ -16,5 +16,6 @@ public record AlertaResponseDTO(
     String nomeUsuario,
     Integer confirmacoes,
     Integer denuncias,
-    LocalDateTime dataCriacao
+    LocalDateTime dataCriacao,
+    Boolean podeExcluir
 ) {}

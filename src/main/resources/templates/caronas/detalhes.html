@@ -1,206 +1,224 @@
 <!DOCTYPE html>
 <html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
-	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Detalhes da Carona - Segurança Fatec ZL</title>
-<link
-	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-	rel="stylesheet">
-<link rel="stylesheet"
-	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<style>
-.sidebar {
-	min-height: 100vh;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-}
-
-.sidebar a {
-	color: rgba(255, 255, 255, 0.8);
-	text-decoration: none;
-	padding: 10px 15px;
-	display: block;
-	transition: all 0.3s;
-}
-
-.sidebar a:hover, .sidebar a.active {
-	background: rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 10px;
-}
-
-.info-row {
-	padding: 12px 0;
-	border-bottom: 1px solid #e0e0e0;
-}
-
-.status-badge {
-	padding: 5px 12px;
-	border-radius: 20px;
-	font-size: 12px;
-	font-weight: 500;
-}
-
-.status-ABERTA {
-	background-color: #28a745;
-	color: white;
-}
-
-.status-EM_ANDAMENTO {
-	background-color: #ffc107;
-	color: #000;
-}
-
-.status-FINALIZADA {
-	background-color: #6c757d;
-	color: white;
-}
-
-.status-CANCELADA {
-	background-color: #dc3545;
-	color: white;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalhes da Carona - Segurança Fatec ZL</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 10px;
+        }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; }
+        .status-ABERTA { background: #28a745; color: white; }
+        .status-EM_ANDAMENTO { background: #ffc107; color: #000; }
+        .status-FINALIZADA { background: #6c757d; color: white; }
+        .status-CANCELADA { background: #dc3545; color: white; }
+        .info-row { padding: 12px 0; border-bottom: 1px solid #e0e0e0; }
+    </style>
 </head>
 <body>
-	<div class="container-fluid">
-		<div class="row">
-			<!-- Sidebar -->
-			<div class="col-md-3 col-lg-2 px-0 sidebar">
-				<div class="text-center py-4">
-					<i class="bi bi-shield-shaded display-3"></i>
-					<h4 class="mt-2">Segurança Fatec ZL</h4>
-				</div>
-				<nav class="nav flex-column px-3">
-					<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard
-					</a> 
-					<a href="/alertas"> <i class="bi bi-exclamation-triangle"></i> Alertas
-					</a> 
-					<a href="/caronas" class="active"> <i class="bi bi-car-front"></i> Caronas
-					</a> 
-					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas
-					</a> 
-					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
-					</a> 
-					<a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
-					</a>
-				</nav>
-			</div>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 px-0 sidebar">
+            <div class="text-center py-4">
+                <i class="bi bi-shield-shaded display-3"></i>
+                <h4 class="mt-2">Segurança Fatec ZL</h4>
+            </div>
+            <nav class="nav flex-column px-3">
+                <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+                <a href="/caronas" class="active"><i class="bi bi-car-front"></i> Caronas</a>
+                <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+                <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+                <a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+                <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+            </nav>
+        </div>
 
-			<!-- Main Content -->
-			<div class="col-md-9 col-lg-10 px-4 py-3">
-				<div class="d-flex justify-content-between align-items-center mb-4">
-					<h2>Detalhes da Carona</h2>
-					<div>
-						<span class="badge bg-success p-2"> <i
-							class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
-						</span>
-					</div>
-				</div>
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 px-4 py-3">
+            <div class="d-flex justify-content-between mb-4">
+                <h2><i class="bi bi-car-front"></i> Detalhes da Carona</h2>
+                <span class="badge bg-success p-2"><i class="bi bi-person-circle"></i> <span sec:authentication="name"></span></span>
+            </div>
 
-				<div class="row">
-					<div class="col-lg-8">
-						<div class="card mb-4">
-							<div class="card-body p-4">
-								<div class="d-flex justify-content-between align-items-start mb-3">
-									<h3 th:text="${carona.motoristaNome}">Motorista</h3>
-									<span class="status-badge" th:classappend="'status-'+${carona.status}" th:text="${carona.status}">Status</span>
-								</div>
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between">
+                                <h3 th:text="${carona.motoristaNome}">Motorista</h3>
+                                <span class="status-badge" th:classappend="'status-'+${carona.status}" th:text="${carona.status}">Status</span>
+                            </div>
+                            <div class="info-row"><div class="row"><div class="col-md-4 fw-bold">Origem:</div><div class="col-md-8" th:text="${carona.origem}"></div></div></div>
+                            <div class="info-row"><div class="row"><div class="col-md-4 fw-bold">Destino:</div><div class="col-md-8" th:text="${carona.destino}"></div></div></div>
+                            <div class="info-row"><div class="row"><div class="col-md-4 fw-bold">Horário:</div><div class="col-md-8" th:text="${#temporals.format(carona.horarioSaida, 'dd/MM/yyyy HH:mm')}"></div></div></div>
+                            <div class="info-row"><div class="row"><div class="col-md-4 fw-bold">Vagas:</div><div class="col-md-8"><span id="vagasOcupadas" th:text="${carona.vagasOcupadas}">0</span> / <span id="vagasDisponiveis" th:text="${carona.vagasDisponiveis}">0</span></div></div></div>
+                            <div class="info-row"><div class="row"><div class="col-md-4 fw-bold">Veículo:</div><div class="col-md-8" th:text="${carona.veiculoModelo}+' - '+${carona.veiculoPlaca}"></div></div></div>
+                            <div th:if="${carona.observacoes}" class="info-row"><div class="row"><div class="col-md-4 fw-bold">Obs:</div><div class="col-md-8" th:text="${carona.observacoes}"></div></div></div>
 
-								<div class="info-row">
-									<div class="row">
-										<div class="col-md-4 fw-bold">Origem:</div>
-										<div class="col-md-8" th:text="${carona.origem}">Origem</div>
-									</div>
-								</div>
-								<div class="info-row">
-									<div class="row">
-										<div class="col-md-4 fw-bold">Destino:</div>
-										<div class="col-md-8" th:text="${carona.destino}">Destino</div>
-									</div>
-								</div>
-								<div class="info-row">
-									<div class="row">
-										<div class="col-md-4 fw-bold">Horário de Saída:</div>
-										<div class="col-md-8" th:text="${#temporals.format(carona.horarioSaida, 'dd/MM/yyyy HH:mm')}">Data</div>
-									</div>
-								</div>
-								<div class="info-row">
-									<div class="row">
-										<div class="col-md-4 fw-bold">Vagas:</div>
-										<div class="col-md-8">
-											<span th:text="${carona.vagasOcupadas}">0</span> / <span th:text="${carona.vagasDisponiveis}">0</span> ocupadas
-										</div>
-									</div>
-								</div>
-								<div class="info-row">
-									<div class="row">
-										<div class="col-md-4 fw-bold">Veículo:</div>
-										<div class="col-md-8" th:text="${carona.veiculoModelo} + ' - ' + ${carona.veiculoPlaca}">Veículo</div>
-									</div>
-								</div>
-								<div th:if="${carona.observacoes}" class="info-row">
-									<div class="row">
-										<div class="col-md-4 fw-bold">Observações:</div>
-										<div class="col-md-8" th:text="${carona.observacoes}">Obs</div>
-									</div>
-								</div>
+                            <!-- Botões para motorista -->
+                            <div th:if="${#authentication.name == carona.motoristaEmail and carona.status == 'ABERTA'}" class="mt-4 d-flex gap-2">
+                                <button class="btn btn-danger" onclick="cancelarCarona()"><i class="bi bi-x-circle"></i> Cancelar Carona</button>
+                                <button class="btn btn-dark" onclick="excluirCarona()"><i class="bi bi-trash"></i> Excluir Carona</button>
+                            </div>
+                        </div>
+                    </div>
 
-								<div class="text-center mt-4" th:if="${carona.status == 'ABERTA' and carona.vagasOcupadas < carona.vagasDisponiveis}">
-									<button class="btn btn-success btn-lg px-5" onclick="solicitarVaga()">
-										<i class="bi bi-check-circle"></i> Solicitar Vaga
-									</button>
-								</div>
-								<div th:if="${carona.status != 'ABERTA'}" class="alert alert-info text-center mt-4">
-									<i class="bi bi-info-circle"></i> Esta carona não está mais disponível para solicitações.
-								</div>
-							</div>
-						</div>
-					</div>
+                    <!-- Área de solicitações (apenas motorista e carona aberta) -->
+                    <div class="card" th:if="${#authentication.name == carona.motoristaEmail and carona.status == 'ABERTA'}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Solicitações de Participação</h5>
+                            <button class="btn btn-sm btn-secondary" onclick="carregarSolicitacoes()">Atualizar</button>
+                        </div>
+                        <div class="card-body" id="solicitacoesContainer">
+                            <p class="text-muted">Carregando solicitações...</p>
+                        </div>
+                    </div>
+                </div>
 
-					<div class="col-lg-4">
-						<div class="card">
-							<div class="card-body">
-								<h5><i class="bi bi-shield-check"></i> Dicas de Segurança</h5>
-								<hr>
-								<ul class="list-unstyled">
-									<li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Confirme os dados do motorista</li>
-									<li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Compartilhe sua localização com familiares</li>
-									<li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Mantenha o celular carregado</li>
-									<li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Informe seu trajeto para alguém de confiança</li>
-									<li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Em caso de emergência, ligue 190</li>
-								</ul>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+                <!-- Dicas -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5><i class="bi bi-shield-check"></i> Dicas de Segurança</h5><hr>
+                            <ul>
+                                <li>Confirme os dados do motorista</li>
+                                <li>Compartilhe sua localização</li>
+                                <li>Mantenha o celular carregado</li>
+                                <li>Emergência: 190</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-	<script
-		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-	<script>
-        function solicitarVaga() {
-            if (confirm('Deseja solicitar vaga nesta carona?')) {
-                const caronaId = /*[[${carona.id}]]*/ 0;
-                fetch(`/api/caronas/${caronaId}/solicitar`, { method: 'POST' })
-                    .then(response => {
-                        if (response.ok) {
-                            alert('Solicitação enviada com sucesso!');
-                            window.location.reload();
-                        } else {
-                            alert('Erro ao solicitar vaga');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro:', error);
-                        alert('Erro ao conectar com o servidor');
-                    });
-            }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    const caronaId = /*[[${carona.id}]]*/ null;
+    const motoristaEmail = /*[[${carona.motoristaEmail}]]*/ '';
+    const usuarioAtual = /*[[${#authentication.name}]]*/ '';
+    const isMotorista = (usuarioAtual === motoristaEmail);
+
+    function carregarSolicitacoes() {
+        if (!isMotorista) return;
+        fetch(`/api/caronas/${caronaId}/solicitacoes`)
+            .then(res => res.json())
+            .then(solicitacoes => {
+                const container = document.getElementById('solicitacoesContainer');
+                if (!solicitacoes || solicitacoes.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Nenhuma solicitação pendente.</p>';
+                    return;
+                }
+                container.innerHTML = solicitacoes.map(s => `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <strong>${s.passageiroNome}</strong> (${s.passageiroEmail})<br>
+                            <div class="mt-2">
+                                <button onclick="aceitar(${s.id})" class="btn btn-success btn-sm">Aceitar</button>
+                                <button onclick="recusar(${s.id})" class="btn btn-danger btn-sm">Recusar</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('solicitacoesContainer').innerHTML = '<p class="text-danger">Erro ao carregar solicitações.</p>';
+            });
+    }
+
+    function aceitar(participacaoId) {
+        fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/aceitar`, { method: 'PUT' })
+            .then(res => {
+                if (res.ok) {
+                    alert('Passageiro aceito!');
+                    atualizarVagas();
+                    carregarSolicitacoes();
+                } else {
+                    return res.text().then(msg => { throw new Error(msg); });
+                }
+            })
+            .catch(err => alert('Erro: ' + err.message));
+    }
+
+    function recusar(participacaoId) {
+        fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/recusar`, { method: 'PUT' })
+            .then(res => {
+                if (res.ok) {
+                    alert('Passageiro recusado');
+                    carregarSolicitacoes();
+                } else {
+                    return res.text().then(msg => { throw new Error(msg); });
+                }
+            })
+            .catch(err => alert('Erro: ' + err.message));
+    }
+
+    function cancelarCarona() {
+        if (confirm('Cancelar esta carona? Todas as solicitações serão canceladas.')) {
+            fetch(`/api/caronas/${caronaId}/cancelar`, { method: 'PUT' })
+                .then(res => {
+                    if (res.ok) {
+                        alert('Carona cancelada');
+                        window.location.href = '/caronas';
+                    } else {
+                        return res.text().then(msg => { throw new Error(msg); });
+                    }
+                })
+                .catch(err => alert('Erro: ' + err.message));
         }
-    </script>
+    }
+
+    function excluirCarona() {
+        if (confirm('Excluir permanentemente esta carona? Esta ação não pode ser desfeita.')) {
+            fetch(`/api/caronas/${caronaId}/excluir`, { method: 'DELETE' })
+                .then(res => {
+                    if (res.ok) {
+                        alert('Carona excluída');
+                        window.location.href = '/caronas';
+                    } else {
+                        return res.text().then(msg => { throw new Error(msg); });
+                    }
+                })
+                .catch(err => alert('Erro: ' + err.message));
+        }
+    }
+
+    function atualizarVagas() {
+        fetch(`/api/caronas/${caronaId}`)
+            .then(res => res.json())
+            .then(carona => {
+                document.getElementById('vagasOcupadas').innerText = carona.vagasOcupadas;
+                document.getElementById('vagasDisponiveis').innerText = carona.vagasDisponiveis;
+            })
+            .catch(console.error);
+    }
+
+    if (isMotorista) {
+        carregarSolicitacoes();
+    }
+</script>
 </body>
 </html>

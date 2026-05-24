@@ -1,264 +1,161 @@
 <!DOCTYPE html>
 <html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
-	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Caronas - Segurança Fatec ZL</title>
-<link
-	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-	rel="stylesheet">
-<link rel="stylesheet"
-	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<style>
-.sidebar {
-	min-height: 100vh;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-}
-
-.sidebar a {
-	color: rgba(255, 255, 255, 0.8);
-	text-decoration: none;
-	padding: 10px 15px;
-	display: block;
-	transition: all 0.3s;
-}
-
-.sidebar a:hover, .sidebar a.active {
-	background: rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 10px;
-}
-
-.carona-card {
-	border-left: 4px solid #28a745;
-	transition: transform 0.3s;
-}
-
-.carona-card:hover {
-	transform: translateY(-3px);
-}
-
-.filter-card {
-	background-color: #f8f9fa;
-	border: none;
-	border-radius: 10px;
-}
-
-.badge-vagas {
-	background-color: #28a745;
-	color: white;
-	padding: 5px 10px;
-	border-radius: 20px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caronas - Segurança Fatec ZL</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 10px;
+        }
+        .carona-card {
+            border-left: 4px solid #28a745;
+            transition: transform 0.3s;
+        }
+        .carona-card:hover { transform: translateY(-3px); }
+        .filter-card { background-color: #f8f9fa; border: none; border-radius: 10px; }
+        .badge-vagas { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 20px; }
+        .badge-cancelada { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 20px; }
+    </style>
 </head>
 <body>
-	<div class="container-fluid">
-		<div class="row">
-			<!-- Sidebar -->
-			<div class="col-md-3 col-lg-2 px-0 sidebar">
-				<div class="text-center py-4">
-					<i class="bi bi-shield-shaded display-3"></i>
-					<h4 class="mt-2">Segurança Fatec ZL</h4>
-				</div>
-				<nav class="nav flex-column px-3">
-					<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard
-					</a> 
-					<a href="/alertas"> <i class="bi bi-exclamation-triangle"></i> Alertas
-					</a> 
-					<a href="/caronas" class="active"> <i class="bi bi-car-front"></i> Caronas
-					</a> 
-					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas
-					</a> 
-					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
-					</a> 
-					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
-					<i class="bi bi-shield-lock"></i> Admin
-					</a>
-					<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
-				</nav>
-			</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-3 col-lg-2 px-0 sidebar">
+            <div class="text-center py-4">
+                <i class="bi bi-shield-shaded display-3"></i>
+                <h4 class="mt-2">Segurança Fatec ZL</h4>
+            </div>
+            <nav class="nav flex-column px-3">
+                <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+                <a href="/caronas" class="active"><i class="bi bi-car-front"></i> Caronas</a>
+                <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+                <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+                <a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+                <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+            </nav>
+        </div>
 
-			<!-- Main Content -->
-			<div class="col-md-9 col-lg-10 px-4 py-3">
-				<div class="d-flex justify-content-between align-items-center mb-4">
-					<h2>Caronas Solidárias</h2>
-					<div>
-						<span class="badge bg-success p-2"> <i
-							class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
-						</span>
-					</div>
-				</div>
+        <div class="col-md-9 col-lg-10 px-4 py-3">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Caronas Solidárias</h2>
+                <span class="badge bg-success p-2"><i class="bi bi-person-circle"></i> <span sec:authentication="name"></span></span>
+            </div>
 
-				<!-- Quick Actions -->
-				<div class="row mb-4">
-					<div class="col-12">
-						<div class="card">
-							<div class="card-body">
-								<h5 class="card-title">Ações Rápidas</h5>
-								<div class="d-flex gap-2">
-									<a href="/caronas/nova" class="btn btn-success"> <i
-										class="bi bi-plus-circle"></i> Oferecer Carona
-									</a>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Filtros -->
-				<div class="card filter-card mb-4">
-					<div class="card-body">
-						<h5><i class="bi bi-funnel"></i> Filtrar Caronas</h5>
-						<div class="row g-3">
-							<div class="col-md-3">
-								<label class="form-label">Origem</label>
-								<input type="text" class="form-control" id="filtroOrigem" placeholder="Ex: Fatec">
-							</div>
-							<div class="col-md-3">
-								<label class="form-label">Destino</label>
-								<input type="text" class="form-control" id="filtroDestino" placeholder="Ex: Centro">
-							</div>
-							<div class="col-md-3">
-								<label class="form-label">Data Início</label>
-								<input type="datetime-local" class="form-control" id="filtroDataInicio">
-							</div>
-							<div class="col-md-3">
-								<label class="form-label">Data Fim</label>
-								<input type="datetime-local" class="form-control" id="filtroDataFim">
-							</div>
-							<div class="col-12">
-								<button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button>
-								<button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Lista de Caronas -->
-				<div id="caronasContainer" class="row">
-					<div class="col-12 text-center py-5">
-						<div class="spinner-border text-primary" role="status">
-							<span class="visually-hidden">Carregando...</span>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<script
-		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-	<script>
-        let caronas = [];
-
-        function carregarCaronas() {
-            fetch('/api/caronas')
-                .then(response => response.json())
-                .then(data => {
-                    caronas = data;
-                    aplicarFiltros();
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar caronas:', error);
-                    document.getElementById('caronasContainer').innerHTML = '<div class="col-12"><div class="alert alert-danger">Erro ao carregar caronas</div></div>';
-                });
-        }
-
-        function formatarData(data) {
-            return new Date(data).toLocaleString('pt-BR');
-        }
-
-        function aplicarFiltros() {
-            const origem = document.getElementById('filtroOrigem').value.toLowerCase();
-            const destino = document.getElementById('filtroDestino').value.toLowerCase();
-            const dataInicio = document.getElementById('filtroDataInicio').value;
-            const dataFim = document.getElementById('filtroDataFim').value;
-
-            let filtrados = caronas;
-
-            if (origem) {
-                filtrados = filtrados.filter(c => c.origem.toLowerCase().includes(origem));
-            }
-            if (destino) {
-                filtrados = filtrados.filter(c => c.destino.toLowerCase().includes(destino));
-            }
-            if (dataInicio) {
-                filtrados = filtrados.filter(c => new Date(c.horarioSaida) >= new Date(dataInicio));
-            }
-            if (dataFim) {
-                const fim = new Date(dataFim);
-                filtrados = filtrados.filter(c => new Date(c.horarioSaida) <= fim);
-            }
-
-            const container = document.getElementById('caronasContainer');
-            if (filtrados.length === 0) {
-                container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhuma carona encontrada.</div></div>';
-                return;
-            }
-
-            container.innerHTML = filtrados.map(carona => `
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card carona-card h-100">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <h5 class="card-title"><i class="bi bi-person-circle"></i> ${carona.motoristaNome}</h5>
-                                <span class="badge-vagas"><i class="bi bi-people"></i> ${carona.vagasOcupadas || 0}/${carona.vagasDisponiveis}</span>
-                            </div>
-                            <hr>
-                            <div><i class="bi bi-geo-alt-fill text-success"></i> ${carona.origem}</div>
-                            <div><i class="bi bi-geo-alt-fill text-danger"></i> ${carona.destino}</div>
-                            <div><i class="bi bi-clock"></i> ${formatarData(carona.horarioSaida)}</div>
-                            <div><i class="bi bi-car-front"></i> ${carona.veiculoModelo} - ${carona.veiculoPlaca}</div>
-                            ${carona.observacoes ? `<div><i class="bi bi-chat-text"></i> <small>${carona.observacoes}</small></div>` : ''}
-                            <hr>
-                            <div class="d-grid gap-2">
-                                <a href="/caronas/${carona.id}" class="btn btn-outline-success btn-sm">
-                                    <i class="bi bi-eye"></i> Ver Detalhes
-                                </a>
-                                <button onclick="solicitarVaga(${carona.id})" class="btn btn-success btn-sm">
-                                    <i class="bi bi-check-circle"></i> Solicitar Vaga
-                                </button>
+                            <h5 class="card-title">Ações Rápidas</h5>
+                            <div class="d-flex gap-2">
+                                <a href="/caronas/nova" class="btn btn-success"><i class="bi bi-plus-circle"></i> Oferecer Carona</a>
                             </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
-        }
+            </div>
 
-        function filtrar() {
-            aplicarFiltros();
-        }
+            <div class="card filter-card mb-4">
+                <div class="card-body">
+                    <h5><i class="bi bi-funnel"></i> Filtrar Caronas</h5>
+                    <div class="row g-3">
+                        <div class="col-md-3"><label class="form-label">Origem</label><input type="text" class="form-control" id="filtroOrigem" placeholder="Ex: Fatec"></div>
+                        <div class="col-md-3"><label class="form-label">Destino</label><input type="text" class="form-control" id="filtroDestino" placeholder="Ex: Centro"></div>
+                        <div class="col-md-3"><label class="form-label">Data Início</label><input type="datetime-local" class="form-control" id="filtroDataInicio"></div>
+                        <div class="col-md-3"><label class="form-label">Data Fim</label><input type="datetime-local" class="form-control" id="filtroDataFim"></div>
+                        <div class="col-12"><button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button> <button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button></div>
+                    </div>
+                </div>
+            </div>
 
-        function limparFiltros() {
-            document.getElementById('filtroOrigem').value = '';
-            document.getElementById('filtroDestino').value = '';
-            document.getElementById('filtroDataInicio').value = '';
-            document.getElementById('filtroDataFim').value = '';
-            aplicarFiltros();
-        }
+            <div id="caronasContainer" class="row">
+                <div class="col-12 text-center py-5"><div class="spinner-border text-primary"><span class="visually-hidden">Carregando...</span></div></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        function solicitarVaga(id) {
-            if (confirm('Deseja solicitar vaga nesta carona?')) {
-                fetch(`/api/caronas/${id}/solicitar`, { method: 'POST' })
-                    .then(response => {
-                        if (response.ok) {
-                            alert('Solicitação enviada com sucesso!');
-                            carregarCaronas();
-                        } else {
-                            alert('Erro ao solicitar vaga');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro:', error);
-                        alert('Erro ao conectar com o servidor');
-                    });
-            }
-        }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let caronas = [];
 
-        carregarCaronas();
-    </script>
+    function carregarCaronas() {
+        fetch('/api/caronas')
+            .then(res => res.json())
+            .then(data => { caronas = data; aplicarFiltros(); })
+            .catch(err => { console.error(err); document.getElementById('caronasContainer').innerHTML = '<div class="col-12"><div class="alert alert-danger">Erro ao carregar caronas</div></div>'; });
+    }
+
+    function formatarData(data) { return new Date(data).toLocaleString('pt-BR'); }
+
+    function aplicarFiltros() {
+        let filtrados = caronas;
+        const origem = document.getElementById('filtroOrigem').value.toLowerCase();
+        if (origem) filtrados = filtrados.filter(c => c.origem.toLowerCase().includes(origem));
+        const destino = document.getElementById('filtroDestino').value.toLowerCase();
+        if (destino) filtrados = filtrados.filter(c => c.destino.toLowerCase().includes(destino));
+        const dataInicio = document.getElementById('filtroDataInicio').value;
+        if (dataInicio) filtrados = filtrados.filter(c => new Date(c.horarioSaida) >= new Date(dataInicio));
+        const dataFim = document.getElementById('filtroDataFim').value;
+        if (dataFim) filtrados = filtrados.filter(c => new Date(c.horarioSaida) <= new Date(dataFim));
+
+        const container = document.getElementById('caronasContainer');
+        if (filtrados.length === 0) { container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhuma carona encontrada.</div></div>'; return; }
+
+        container.innerHTML = filtrados.map(carona => `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card carona-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title"><i class="bi bi-person-circle"></i> ${carona.motoristaNome}</h5>
+                            <span class="${carona.status === 'CANCELADA' ? 'badge-cancelada' : 'badge-vagas'}"><i class="bi bi-people"></i> ${carona.status === 'CANCELADA' ? 'Cancelada' : `${carona.vagasOcupadas || 0}/${carona.vagasDisponiveis}`}</span>
+                        </div>
+                        <hr>
+                        <div><i class="bi bi-geo-alt-fill text-success"></i> ${carona.origem}</div>
+                        <div><i class="bi bi-geo-alt-fill text-danger"></i> ${carona.destino}</div>
+                        <div><i class="bi bi-clock"></i> ${formatarData(carona.horarioSaida)}</div>
+                        <div><i class="bi bi-car-front"></i> ${carona.veiculoModelo} - ${carona.veiculoPlaca}</div>
+                        ${carona.observacoes ? `<div><i class="bi bi-chat-text"></i> <small>${carona.observacoes}</small></div>` : ''}
+                        <hr>
+                        <div class="d-grid gap-2">
+                            <a href="/caronas/${carona.id}" class="btn btn-outline-success btn-sm"><i class="bi bi-eye"></i> Ver Detalhes</a>
+                            ${carona.status === 'ABERTA' && carona.vagasOcupadas < carona.vagasDisponiveis ? `<button onclick="solicitarVaga(${carona.id})" class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Solicitar Vaga</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function solicitarVaga(id) {
+        if (confirm('Deseja solicitar vaga nesta carona?')) {
+            fetch(`/api/caronas/${id}/solicitar`, { method: 'POST' })
+                .then(res => { if (res.ok) { alert('Solicitação enviada!'); carregarCaronas(); } else { return res.text().then(msg => { throw new Error(msg); }); } })
+                .catch(err => alert('Erro: ' + err.message));
+        }
+    }
+
+    function filtrar() { aplicarFiltros(); }
+    function limparFiltros() { document.getElementById('filtroOrigem').value = ''; document.getElementById('filtroDestino').value = ''; document.getElementById('filtroDataInicio').value = ''; document.getElementById('filtroDataFim').value = ''; aplicarFiltros(); }
+    carregarCaronas();
+</script>
 </body>
 </html>

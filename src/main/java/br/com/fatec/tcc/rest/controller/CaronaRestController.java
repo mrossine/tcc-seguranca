@@ -1,36 +1,85 @@
 package br.com.fatec.tcc.rest.controller;
 
 import br.com.fatec.tcc.dto.CaronaResponseDTO;
+import br.com.fatec.tcc.dto.ParticipacaoCaronaDTO;
 import br.com.fatec.tcc.service.CaronaService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/caronas")
 @RequiredArgsConstructor
 public class CaronaRestController {
 
     private final CaronaService caronaService;
 
-    @GetMapping("/caronas")
-    public List<CaronaResponseDTO> listarCaronas(
-            @RequestParam(required = false) String origem,
-            @RequestParam(required = false) String destino,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime horarioInicio,
-            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime horarioFim) {
-        return caronaService.listarCaronasDisponiveis(origem, destino, horarioInicio, horarioFim);
+    @GetMapping
+    public List<CaronaResponseDTO> listarCaronasDisponiveis() {
+        return caronaService.listarCaronasDisponiveis(null, null, null, null);
     }
 
-    @PostMapping("/caronas/{id}/solicitar")
+    @GetMapping("/{id}")
+    public CaronaResponseDTO buscarCarona(@PathVariable Long id) {
+        return caronaService.buscarPorId(id);
+    }
+
+    @PostMapping("/{id}/solicitar")
     public ResponseEntity<?> solicitarVaga(@PathVariable Long id, Authentication auth) {
         try {
             caronaService.solicitarVaga(id, auth.getName());
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/solicitacoes")
+    public List<ParticipacaoCaronaDTO> listarSolicitacoes(@PathVariable Long id, Authentication auth) {
+        return caronaService.listarSolicitacoesPorCarona(id, auth.getName());
+    }
+
+    @PutMapping("/{caronaId}/solicitacoes/{participacaoId}/aceitar")
+    public ResponseEntity<?> aceitarPassageiro(@PathVariable Long caronaId,
+                                               @PathVariable Long participacaoId,
+                                               Authentication auth) {
+        try {
+            caronaService.aceitarPassageiro(caronaId, participacaoId, auth.getName());
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{caronaId}/solicitacoes/{participacaoId}/recusar")
+    public ResponseEntity<?> recusarPassageiro(@PathVariable Long caronaId,
+                                               @PathVariable Long participacaoId,
+                                               Authentication auth) {
+        try {
+            caronaService.recusarPassageiro(caronaId, participacaoId, auth.getName());
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelarCarona(@PathVariable Long id, Authentication auth) {
+        try {
+            caronaService.cancelarCarona(id, auth.getName());
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}/excluir")
+    public ResponseEntity<?> excluirCarona(@PathVariable Long id, Authentication auth) {
+        try {
+            caronaService.excluirCarona(id, auth.getName());
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

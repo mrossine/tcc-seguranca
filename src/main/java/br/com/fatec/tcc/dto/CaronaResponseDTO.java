@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 public record CaronaResponseDTO(
     Long id,
     String motoristaNome,
+    String motoristaEmail,
     String origem,
     String destino,
     LocalDateTime horarioSaida,

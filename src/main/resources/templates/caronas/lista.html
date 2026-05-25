@@ -25,14 +25,14 @@
             color: white;
             border-radius: 10px;
         }
-        .carona-card {
-            border-left: 4px solid #28a745;
-            transition: transform 0.3s;
-        }
+        .carona-card { border-left: 4px solid #28a745; transition: transform 0.3s; }
         .carona-card:hover { transform: translateY(-3px); }
+        .carona-card.minha-carona { border-left: 4px solid #667eea; }
         .filter-card { background-color: #f8f9fa; border: none; border-radius: 10px; }
-        .badge-vagas { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 20px; }
-        .badge-cancelada { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 20px; }
+        .badge-vagas { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-cancelada { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-minha { background-color: #667eea; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
+        .badge-pendente { background-color: #ffc107; color: #000; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -53,26 +53,24 @@
                 <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
             </nav>
         </div>
-
+ 
         <div class="col-md-9 col-lg-10 px-4 py-3">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>Caronas Solidárias</h2>
                 <span class="badge bg-success p-2"><i class="bi bi-person-circle"></i> <span sec:authentication="name"></span></span>
             </div>
-
+ 
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-body">
                             <h5 class="card-title">Ações Rápidas</h5>
-                            <div class="d-flex gap-2">
-                                <a href="/caronas/nova" class="btn btn-success"><i class="bi bi-plus-circle"></i> Oferecer Carona</a>
-                            </div>
+                            <a href="/caronas/nova" class="btn btn-success"><i class="bi bi-plus-circle"></i> Oferecer Carona</a>
                         </div>
                     </div>
                 </div>
             </div>
-
+ 
             <div class="card filter-card mb-4">
                 <div class="card-body">
                     <h5><i class="bi bi-funnel"></i> Filtrar Caronas</h5>
@@ -81,31 +79,60 @@
                         <div class="col-md-3"><label class="form-label">Destino</label><input type="text" class="form-control" id="filtroDestino" placeholder="Ex: Centro"></div>
                         <div class="col-md-3"><label class="form-label">Data Início</label><input type="datetime-local" class="form-control" id="filtroDataInicio"></div>
                         <div class="col-md-3"><label class="form-label">Data Fim</label><input type="datetime-local" class="form-control" id="filtroDataFim"></div>
-                        <div class="col-12"><button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button> <button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button></div>
+                        <div class="col-12">
+                            <button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button>
+                            <button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button>
+                        </div>
                     </div>
                 </div>
             </div>
-
+ 
             <div id="caronasContainer" class="row">
-                <div class="col-12 text-center py-5"><div class="spinner-border text-primary"><span class="visually-hidden">Carregando...</span></div></div>
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border text-primary"><span class="visually-hidden">Carregando...</span></div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
+ 
+<!-- Modal para confirmar/recusar solicitações -->
+<div class="modal fade" id="modalSolicitacoes" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-people"></i> Solicitações de Participação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalSolicitacoesBody">
+                <div class="text-center"><div class="spinner-border"></div></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+ 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
+<script th:inline="javascript">
+    const emailUsuario = /*[[${emailUsuario}]]*/ '';
+    const isAdminOuModerador = /*[[${isAdminOuModerador}]]*/ false;
     let caronas = [];
-
+    let caronaIdModal = null;
+ 
     function carregarCaronas() {
         fetch('/api/caronas')
             .then(res => res.json())
             .then(data => { caronas = data; aplicarFiltros(); })
-            .catch(err => { console.error(err); document.getElementById('caronasContainer').innerHTML = '<div class="col-12"><div class="alert alert-danger">Erro ao carregar caronas</div></div>'; });
+            .catch(() => {
+                document.getElementById('caronasContainer').innerHTML =
+                    '<div class="col-12"><div class="alert alert-danger">Erro ao carregar caronas.</div></div>';
+            });
     }
-
+ 
     function formatarData(data) { return new Date(data).toLocaleString('pt-BR'); }
-
+ 
     function aplicarFiltros() {
         let filtrados = caronas;
         const origem = document.getElementById('filtroOrigem').value.toLowerCase();
@@ -116,45 +143,164 @@
         if (dataInicio) filtrados = filtrados.filter(c => new Date(c.horarioSaida) >= new Date(dataInicio));
         const dataFim = document.getElementById('filtroDataFim').value;
         if (dataFim) filtrados = filtrados.filter(c => new Date(c.horarioSaida) <= new Date(dataFim));
-
+ 
         const container = document.getElementById('caronasContainer');
-        if (filtrados.length === 0) { container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhuma carona encontrada.</div></div>'; return; }
-
-        container.innerHTML = filtrados.map(carona => `
+        if (filtrados.length === 0) {
+            container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhuma carona disponível.</div></div>';
+            return;
+        }
+        container.innerHTML = filtrados.map(carona => renderCarona(carona)).join('');
+    }
+ 
+    function renderCarona(carona) {
+        const souMotorista = carona.motoristaEmail === emailUsuario;
+        const vagasLivres = (carona.vagasDisponiveis || 0) - (carona.vagasOcupadas || 0);
+        const podeExcluir = souMotorista || isAdminOuModerador;
+ 
+        const badgeStatus = carona.status === 'CANCELADA'
+            ? `<span class="badge-cancelada"><i class="bi bi-x-circle"></i> Cancelada</span>`
+            : `<span class="badge-vagas"><i class="bi bi-people"></i> ${carona.vagasOcupadas || 0}/${carona.vagasDisponiveis} vagas</span>`;
+ 
+        const labelMinha = souMotorista
+            ? `<span class="badge-minha ms-1"><i class="bi bi-star-fill"></i> Minha carona</span>` : '';
+ 
+        // Botão de solicitar vaga: só aparece se não for o motorista, a carona estiver aberta e houver vagas
+        const btnSolicitar = (!souMotorista && carona.status === 'ABERTA' && vagasLivres > 0)
+            ? `<button onclick="solicitarVaga(${carona.id})" class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Solicitar Vaga</button>`
+            : '';
+ 
+        // Botão de solicitações: só para o motorista, carona aberta
+        const btnSolicitacoes = (souMotorista && carona.status === 'ABERTA')
+            ? `<button onclick="abrirSolicitacoes(${carona.id})" class="btn btn-warning btn-sm">
+                   <i class="bi bi-people-fill"></i> Ver Solicitações
+               </button>`
+            : '';
+ 
+        // Botão excluir: motorista, admin ou moderador
+        const btnExcluir = (podeExcluir && carona.status !== 'CANCELADA')
+            ? `<button onclick="excluirCarona(${carona.id})" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Excluir</button>`
+            : '';
+ 
+        return `
             <div class="col-md-6 col-lg-4 mb-3">
-                <div class="card carona-card h-100">
+                <div class="card carona-card h-100 ${souMotorista ? 'minha-carona' : ''}">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <h5 class="card-title"><i class="bi bi-person-circle"></i> ${carona.motoristaNome}</h5>
-                            <span class="${carona.status === 'CANCELADA' ? 'badge-cancelada' : 'badge-vagas'}"><i class="bi bi-people"></i> ${carona.status === 'CANCELADA' ? 'Cancelada' : `${carona.vagasOcupadas || 0}/${carona.vagasDisponiveis}`}</span>
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <div class="fw-semibold" style="font-size:14px"><i class="bi bi-person-circle"></i> ${carona.motoristaNome}</div>
+                                ${labelMinha}
+                            </div>
+                            ${badgeStatus}
                         </div>
-                        <hr>
-                        <div><i class="bi bi-geo-alt-fill text-success"></i> ${carona.origem}</div>
-                        <div><i class="bi bi-geo-alt-fill text-danger"></i> ${carona.destino}</div>
-                        <div><i class="bi bi-clock"></i> ${formatarData(carona.horarioSaida)}</div>
-                        <div><i class="bi bi-car-front"></i> ${carona.veiculoModelo} - ${carona.veiculoPlaca}</div>
-                        ${carona.observacoes ? `<div><i class="bi bi-chat-text"></i> <small>${carona.observacoes}</small></div>` : ''}
-                        <hr>
-                        <div class="d-grid gap-2">
-                            <a href="/caronas/${carona.id}" class="btn btn-outline-success btn-sm"><i class="bi bi-eye"></i> Ver Detalhes</a>
-                            ${carona.status === 'ABERTA' && carona.vagasOcupadas < carona.vagasDisponiveis ? `<button onclick="solicitarVaga(${carona.id})" class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Solicitar Vaga</button>` : ''}
+                        <hr class="my-2">
+                        <div class="small mb-1"><i class="bi bi-geo-alt-fill text-success"></i> ${carona.origem}</div>
+                        <div class="small mb-1"><i class="bi bi-geo-alt-fill text-danger"></i> ${carona.destino}</div>
+                        <div class="small mb-1"><i class="bi bi-clock"></i> ${formatarData(carona.horarioSaida)}</div>
+                        <div class="small mb-1"><i class="bi bi-car-front"></i> ${carona.veiculoModelo} — ${carona.veiculoPlaca}</div>
+                        ${carona.observacoes ? `<div class="small text-muted mt-1"><i class="bi bi-chat-text"></i> ${carona.observacoes}</div>` : ''}
+                        <hr class="my-2">
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="/caronas/${carona.id}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-eye"></i> Detalhes</a>
+                            ${btnSolicitar}
+                            ${btnSolicitacoes}
+                            ${btnExcluir}
                         </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
     }
-
+ 
     function solicitarVaga(id) {
         if (confirm('Deseja solicitar vaga nesta carona?')) {
             fetch(`/api/caronas/${id}/solicitar`, { method: 'POST' })
-                .then(res => { if (res.ok) { alert('Solicitação enviada!'); carregarCaronas(); } else { return res.text().then(msg => { throw new Error(msg); }); } })
+                .then(res => {
+                    if (res.ok) { alert('Solicitação enviada com sucesso!'); carregarCaronas(); }
+                    else return res.text().then(msg => { throw new Error(msg); });
+                })
                 .catch(err => alert('Erro: ' + err.message));
         }
     }
-
+ 
+    function excluirCarona(id) {
+        if (confirm('Excluir permanentemente esta carona? Esta ação não pode ser desfeita.')) {
+            fetch(`/api/caronas/${id}/excluir`, { method: 'DELETE' })
+                .then(res => {
+                    if (res.ok) { alert('Carona excluída com sucesso.'); carregarCaronas(); }
+                    else return res.text().then(msg => { throw new Error(msg); });
+                })
+                .catch(err => alert('Erro: ' + err.message));
+        }
+    }
+ 
+    function abrirSolicitacoes(caronaId) {
+        caronaIdModal = caronaId;
+        const modal = new bootstrap.Modal(document.getElementById('modalSolicitacoes'));
+        modal.show();
+        carregarSolicitacoesModal(caronaId);
+    }
+ 
+    function carregarSolicitacoesModal(caronaId) {
+        document.getElementById('modalSolicitacoesBody').innerHTML =
+            '<div class="text-center"><div class="spinner-border"></div></div>';
+        fetch(`/api/caronas/${caronaId}/solicitacoes`)
+            .then(res => res.json())
+            .then(solicitacoes => {
+                const body = document.getElementById('modalSolicitacoesBody');
+                if (!solicitacoes || solicitacoes.length === 0) {
+                    body.innerHTML = '<p class="text-muted text-center py-3"><i class="bi bi-inbox"></i> Nenhuma solicitação pendente.</p>';
+                    return;
+                }
+                body.innerHTML = solicitacoes.map(s => `
+                    <div class="card mb-2">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${s.passageiroNome}</strong><br>
+                                <small class="text-muted">${s.passageiroEmail}</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button onclick="aceitar(${caronaId}, ${s.id})" class="btn btn-success btn-sm">
+                                    <i class="bi bi-check-lg"></i> Aceitar
+                                </button>
+                                <button onclick="recusar(${caronaId}, ${s.id})" class="btn btn-danger btn-sm">
+                                    <i class="bi bi-x-lg"></i> Recusar
+                                </button>
+                            </div>
+                        </div>
+                    </div>`).join('');
+            })
+            .catch(() => {
+                document.getElementById('modalSolicitacoesBody').innerHTML =
+                    '<p class="text-danger">Erro ao carregar solicitações.</p>';
+            });
+    }
+ 
+    function aceitar(caronaId, participacaoId) {
+        fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/aceitar`, { method: 'PUT' })
+            .then(res => {
+                if (res.ok) { alert('Passageiro aceito!'); carregarSolicitacoesModal(caronaId); carregarCaronas(); }
+                else return res.text().then(msg => { throw new Error(msg); });
+            })
+            .catch(err => alert('Erro: ' + err.message));
+    }
+ 
+    function recusar(caronaId, participacaoId) {
+        fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/recusar`, { method: 'PUT' })
+            .then(res => {
+                if (res.ok) { alert('Solicitação recusada.'); carregarSolicitacoesModal(caronaId); }
+                else return res.text().then(msg => { throw new Error(msg); });
+            })
+            .catch(err => alert('Erro: ' + err.message));
+    }
+ 
     function filtrar() { aplicarFiltros(); }
-    function limparFiltros() { document.getElementById('filtroOrigem').value = ''; document.getElementById('filtroDestino').value = ''; document.getElementById('filtroDataInicio').value = ''; document.getElementById('filtroDataFim').value = ''; aplicarFiltros(); }
+    function limparFiltros() {
+        document.getElementById('filtroOrigem').value = '';
+        document.getElementById('filtroDestino').value = '';
+        document.getElementById('filtroDataInicio').value = '';
+        document.getElementById('filtroDataFim').value = '';
+        aplicarFiltros();
+    }
+ 
     carregarCaronas();
 </script>
 </body>

@@ -137,12 +137,15 @@ public class CaronaService {
     }
 
     @Transactional
-    public void excluirCarona(Long caronaId, String emailMotorista) {
+    public void excluirCarona(Long caronaId, String emailUsuario) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
-        Usuario motorista = usuarioService.findUserByUsername(emailMotorista);
-        if (!carona.getMotorista().getId().equals(motorista.getId())) {
-            throw new RuntimeException("Apenas o motorista pode excluir a carona");
+        Usuario usuario = usuarioService.findUserByUsername(emailUsuario);
+        boolean isMotorista = carona.getMotorista().getId().equals(usuario.getId());
+        boolean isAdminOuModerador = usuario.getRole() == Usuario.Role.ADMIN
+                || usuario.getRole() == Usuario.Role.MODERATOR;
+        if (!isMotorista && !isAdminOuModerador) {
+            throw new RuntimeException("Sem permissão para excluir esta carona");
         }
         caronaRepository.delete(carona);
     }

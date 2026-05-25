@@ -80,6 +80,10 @@
                                 <button class="btn btn-danger" onclick="cancelarCarona()"><i class="bi bi-x-circle"></i> Cancelar Carona</button>
                                 <button class="btn btn-dark" onclick="excluirCarona()"><i class="bi bi-trash"></i> Excluir Carona</button>
                             </div>
+                            <!-- Botão excluir para admin/moderador (quando não é o motorista) -->
+                            <div th:if="${isAdminOuModerador and #authentication.name != carona.motoristaEmail and carona.status != 'CANCELADA'}" class="mt-4">
+                                <button class="btn btn-dark" onclick="excluirCarona()"><i class="bi bi-trash"></i> Excluir Carona (Admin)</button>
+                            </div>
                         </div>
                     </div>
 

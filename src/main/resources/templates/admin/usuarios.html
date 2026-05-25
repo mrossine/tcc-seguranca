@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin - Usuários</title>
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -121,6 +123,9 @@
     let paginaAtual = 0;
     let totalPaginas = 0;
 
+    // Verificar se o token CSRF está disponível
+    console.log('XSRF-TOKEN:', getCookie('XSRF-TOKEN'));
+
     function carregarUsuarios() {
         const nome = document.getElementById('filtroNome').value;
         const email = document.getElementById('filtroEmail').value;
@@ -207,19 +212,70 @@
 
     function excluir(id) {
         if (confirm('⚠️ Excluir usuário permanentemente? Essa ação não pode ser desfeita.')) {
-            fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' })
+            // Pegar o token CSRF - tenta ambos os nomes possíveis
+            let token = getCookie('XSRF-TOKEN');
+            if (!token) {
+                token = getCookie('_csrf');
+            }
+            console.log('Token CSRF:', token);
+
+            // Se ainda não temos token, tenta pegar do meta tag
+            if (!token) {
+                const metaTag = document.querySelector('meta[name="_csrf"]');
+                if (metaTag) {
+                    token = metaTag.getAttribute('content');
+                }
+            }
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            // Adiciona o header CSRF se encontrou o token
+            if (token) {
+                headers['X-CSRF-TOKEN'] = token;
+            }
+
+            console.log('Headers enviados:', headers);
+
+            fetch(`/api/admin/usuarios/${id}`, {
+                method: 'DELETE',
+                headers: headers,
+                credentials: 'same-origin'
+            })
                 .then(res => {
+                    console.log('Status da resposta:', res.status);
                     if (res.ok) {
                         alert('Usuário excluído com sucesso!');
                         carregarUsuarios();
                     } else {
-                        return res.json().then(err => { throw new Error(err.error || 'Erro ao excluir'); });
+                        return res.text().then(text => {
+                            console.log('Resposta do servidor:', text);
+                            throw new Error(text || `Erro ${res.status}`);
+                        });
                     }
                 })
                 .catch(error => {
-                    alert('Erro: ' + error.message);
+                    console.error('Erro na exclusão:', error);
+                    alert('Erro ao excluir: ' + error.message);
                 });
         }
+    }
+
+    // Função auxiliar para pegar o valor do cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
 
     function totalProcedure() {

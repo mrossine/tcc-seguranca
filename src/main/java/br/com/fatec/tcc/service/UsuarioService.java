@@ -1,5 +1,6 @@
 package br.com.fatec.tcc.service;
 
+import br.com.fatec.tcc.dto.UsuarioAdminDTO;
 import br.com.fatec.tcc.dto.UsuarioDTO;
 import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.repository.UsuarioRepository;
@@ -135,6 +136,18 @@ public class UsuarioService implements UserDetailsService {
                 pageable
         );
         return page.map(this::convertToDTO);
+    }
+
+    // Converte Usuario para UsuarioAdminDTO (inclui ID para administração)
+    public UsuarioAdminDTO convertToAdminDTO(Usuario u) {
+        return new UsuarioAdminDTO(
+                u.getId(),
+                u.getNomeCompleto(),
+                u.getEmail(),
+                u.getMatricula(),
+                u.getCurso(),
+                u.getFotoPerfil()
+        );
     }
 
     //Métodos auxiliares

@@ -77,19 +77,13 @@
 					<i class="bi bi-shield-shaded display-3"></i>
 					<h4 class="mt-2">Segurança Fatec ZL</h4>
 				</div>
-				<nav class="nav flex-column px-3">
-					<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard
-					</a> 
-					<a href="/alertas" class="active"> <i class="bi bi-exclamation-triangle"></i> Alertas
-					</a> 
-					<a href="/caronas"> <i class="bi bi-car-front"></i> Caronas
-					</a> 
-					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas
-					</a> 
-					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
-					</a> 
-					<a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
-					</a>
+				<nav class="nav flex-column px-3">	<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard	</a>
+					<a href="/alertas" class="active"> <i class="bi bi-exclamation-triangle"></i> Alertas	</a>
+					<a href="/caronas"> <i class="bi bi-car-front"></i> Caronas	</a>
+					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas	</a>
+					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil	</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">	<i class="bi bi-shield-lock"></i> Admin	</a>
+					<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
 				</nav>
 			</div>
 

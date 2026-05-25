@@ -1,5 +1,6 @@
 package br.com.fatec.tcc.rest.controller;
 
+import br.com.fatec.tcc.dto.UsuarioAdminDTO;
 import br.com.fatec.tcc.dto.UsuarioDTO;
 import br.com.fatec.tcc.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class AdminRestController {
 
     // 1. Listar todos os usuários
     @GetMapping("/usuarios")
-    public Page<UsuarioDTO> listarUsuariosPaginado(
+    public Page<UsuarioAdminDTO> listarUsuariosPaginado(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String curso,
@@ -33,7 +34,15 @@ public class AdminRestController {
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
-        return usuarioService.listarUsuariosPaginado(nome, email, curso, pageable);
+        Page<UsuarioDTO> usuariosDTO = usuarioService.listarUsuariosPaginado(nome, email, curso, pageable);
+        return usuariosDTO.map(dto -> new UsuarioAdminDTO(
+                null, // ID será adicionado abaixo
+                dto.nomeCompleto(),
+                dto.email(),
+                dto.matricula(),
+                dto.curso(),
+                dto.fotoPerfil()
+        ));
     }
 
     // 2. Deletar usuário por ID

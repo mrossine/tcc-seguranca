@@ -22,78 +22,78 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
-        "/",
-        "/login",
-        "/registro",
-        "/registro/**",
-        "/css/**",
-        "/js/**",
-        "/images/**",
-        "/webjars/**",
-        "/actuator/health"
+            "/",
+            "/login",
+            // ✅ FIX 1: /cadastro não estava na lista — usuário era redirecionado para login
+            "/cadastro",
+            "/cadastro/**",
+            "/api/auth/register",
+            "/css/**",
+            "/js/**",
+            "/images/**",
+            "/webjars/**",
+            "/actuator/health"
     };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-            )
-            .headers(headers -> headers
-                .httpStrictTransportSecurity(hsts -> hsts
-                    .includeSubDomains(true)
-                    .maxAgeInSeconds(31536000)
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 )
-                .frameOptions(frame -> frame.sameOrigin())
-                .contentSecurityPolicy(csp -> csp
-                    .policyDirectives("default-src 'self'; " +
-                        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
-                        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
-                        "img-src 'self' data:; " +
-                        "font-src 'self' https://fonts.gstatic.com;")
+                .headers(headers -> headers
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)
+                        )
+                        .frameOptions(frame -> frame.sameOrigin())
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives("default-src 'self'; " +
+                                        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                                        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                                        "img-src 'self' data: https://placehold.co; " +
+                                        // ✅ FIX 2: cdn.jsdelivr.net não estava no font-src — ícones não carregavam
+                                        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;")
+                        )
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                        )
                 )
-                .referrerPolicy(referrer -> referrer
-                    .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_PATHS).permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/painel/**").hasAnyRole("ADMIN", "MODERADOR")
+                        .anyRequest().authenticated()
                 )
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(PUBLIC_PATHS).permitAll()
-                .requestMatchers("/admin/**").hasRole("ADMIN")
-                .requestMatchers("/painel/**").hasAnyRole("ADMIN", "MODERADOR")
-                .anyRequest().authenticated()
-            )
-            .formLogin(form -> form
-                .loginPage("/login")
-                .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/alertas", true)
-                .failureUrl("/login?erro=true")
-                .usernameParameter("email")
-                .passwordParameter("senha")
-                .permitAll()
-            )
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout=true")
-                .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID", "XSRF-TOKEN")
-                .clearAuthentication(true)
-                .permitAll()
-            )
-            .rememberMe(remember -> remember
-                .key("${app.remember-me.key:changeme-in-production}")
-                .tokenValiditySeconds(7 * 24 * 60 * 60)
-            )
-            .sessionManagement(session -> session
-                .maximumSessions(1)
-                .expiredUrl("/login?sessao-expirada=true")
-            );
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .loginProcessingUrl("/login")
+                        .defaultSuccessUrl("/alertas", true)
+                        .failureUrl("/login?erro=true")
+                        // ✅ FIX 3: login.html usa name="username" e name="password"
+                        // mas o config pedia "email" e "senha" — Spring Security ignorava os campos
+                        .usernameParameter("username")
+                        .passwordParameter("password")
+                        .permitAll()
+                )
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout=true")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID", "XSRF-TOKEN")
+                        .clearAuthentication(true)
+                        .permitAll()
+                )
+                .rememberMe(remember -> remember
+                        .key("${app.remember-me.key:changeme-in-production}")
+                        .tokenValiditySeconds(7 * 24 * 60 * 60)
+                )
+                .sessionManagement(session -> session
+                        .maximumSessions(1)
+                        .expiredUrl("/login?sessao-expirada=true")
+                );
 
         return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
     }
 
     @Bean

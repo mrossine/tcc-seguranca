@@ -1,50 +1,104 @@
 package br.com.fatec.tcc.config;
 
-import br.com.fatec.tcc.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private final UsuarioService usuarioService;
-	private final PasswordEncoder passwordEncoder;
+    private static final String[] PUBLIC_PATHS = {
+        "/",
+        "/login",
+        "/registro",
+        "/registro/**",
+        "/css/**",
+        "/js/**",
+        "/images/**",
+        "/webjars/**",
+        "/actuator/health"
+    };
 
-	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		http.csrf(csrf -> csrf.disable()) // Desabilita CSRF para testes (importante para API)
-				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/", "/login", "/cadastro", "/css/**", "/js/**", "/webjars/**", "/api/**")
-						.permitAll().requestMatchers("/admin/**").hasRole("ADMIN").anyRequest().authenticated())
-				.formLogin(form -> form.loginPage("/login").loginProcessingUrl("/login").usernameParameter("username")
-						.passwordParameter("password").defaultSuccessUrl("/dashboard", true)
-						.failureUrl("/login?error=true").permitAll())
-				.logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll())
-				.authenticationProvider(authenticationProvider());
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            )
+            .headers(headers -> headers
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                )
+                .frameOptions(frame -> frame.sameOrigin())
+                .contentSecurityPolicy(csp -> csp
+                    .policyDirectives("default-src 'self'; " +
+                        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                        "img-src 'self' data:; " +
+                        "font-src 'self' https://fonts.gstatic.com;")
+                )
+                .referrerPolicy(referrer -> referrer
+                    .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                )
+            )
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(PUBLIC_PATHS).permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/painel/**").hasAnyRole("ADMIN", "MODERADOR")
+                .anyRequest().authenticated()
+            )
+            .formLogin(form -> form
+                .loginPage("/login")
+                .loginProcessingUrl("/login")
+                .defaultSuccessUrl("/alertas", true)
+                .failureUrl("/login?erro=true")
+                .usernameParameter("email")
+                .passwordParameter("senha")
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/login?logout=true")
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID", "XSRF-TOKEN")
+                .clearAuthentication(true)
+                .permitAll()
+            )
+            .rememberMe(remember -> remember
+                .key("${app.remember-me.key:changeme-in-production}")
+                .tokenValiditySeconds(7 * 24 * 60 * 60)
+            )
+            .sessionManagement(session -> session
+                .maximumSessions(1)
+                .expiredUrl("/login?sessao-expirada=true")
+            );
 
-		return http.build();
-	}
+        return http.build();
+    }
 
-	@Bean
-	public DaoAuthenticationProvider authenticationProvider() {
-		DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-		authProvider.setUserDetailsService(usuarioService);
-		authProvider.setPasswordEncoder(passwordEncoder);
-		return authProvider;
-	}
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
 
-	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-		return config.getAuthenticationManager();
-	}
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
+            throws Exception {
+        return config.getAuthenticationManager();
+    }
 }

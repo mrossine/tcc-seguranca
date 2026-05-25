@@ -1,17 +1,17 @@
 package br.com.fatec.tcc.rest.controller;
 
 import br.com.fatec.tcc.dto.UsuarioAdminDTO;
-import br.com.fatec.tcc.dto.UsuarioDTO;
+import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -24,7 +24,7 @@ public class AdminRestController {
     private final UsuarioService usuarioService;
     private final JdbcTemplate jdbcTemplate;
 
-    // 1. Listar todos os usuários
+    // 1. Listar todos os usuários — retorna UsuarioAdminDTO com ID incluído
     @GetMapping("/usuarios")
     public Page<UsuarioAdminDTO> listarUsuariosPaginado(
             @RequestParam(required = false) String nome,
@@ -34,15 +34,8 @@ public class AdminRestController {
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
-        Page<UsuarioDTO> usuariosDTO = usuarioService.listarUsuariosPaginado(nome, email, curso, pageable);
-        return usuariosDTO.map(dto -> new UsuarioAdminDTO(
-                null, // ID será adicionado abaixo
-                dto.nomeCompleto(),
-                dto.email(),
-                dto.matricula(),
-                dto.curso(),
-                dto.fotoPerfil()
-        ));
+        Page<Usuario> usuarios = usuarioService.listarUsuariosEntidadePaginado(nome, email, curso, pageable);
+        return usuarios.map(usuarioService::convertToAdminDTO);
     }
 
     // 2. Deletar usuário por ID

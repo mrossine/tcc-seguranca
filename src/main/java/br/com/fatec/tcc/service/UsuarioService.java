@@ -128,6 +128,14 @@ public class UsuarioService implements UserDetailsService {
         usuarioRepository.delete(usuario);
     }
 
+    // Lista usuários com paginação e filtros — retorna entidades (com ID) para uso no admin
+    public Page<Usuario> listarUsuariosEntidadePaginado(String nome, String email, String curso, Pageable pageable) {
+        return usuarioRepository.findAll(
+                UsuarioSpecification.filtrar(nome, email, curso),
+                pageable
+        );
+    }
+
     //Lista usuários com paginação e filtros dinâmicos (nome, email, curso).
     //Retorna uma página de UsuarioDTO.
     public Page<UsuarioDTO> listarUsuariosPaginado(String nome, String email, String curso, Pageable pageable) {

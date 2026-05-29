@@ -44,6 +44,7 @@ public class Usuario implements UserDetails {
     private String curso;
     
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(10)")
     private Periodo periodo;
     
     private String fotoPerfil;
@@ -54,6 +55,7 @@ public class Usuario implements UserDetails {
     private Boolean ativo = true;
     
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(20)")
     private Role role = Role.USER;
     
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)

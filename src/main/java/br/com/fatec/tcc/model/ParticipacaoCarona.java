@@ -30,6 +30,7 @@ public class ParticipacaoCarona {
     private Usuario passageiro;
     
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(20)")
     private StatusParticipacao status = StatusParticipacao.SOLICITADA;
     
     @CreatedDate

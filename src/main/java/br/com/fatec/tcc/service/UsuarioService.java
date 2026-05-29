@@ -73,18 +73,14 @@ public class UsuarioService implements UserDetailsService {
         return saved;
     }
 
-    //Atualiza os dados do perfil (nome, curso, período, foto).
+    // Somente o nome completo pode ser alterado pelo próprio usuário.
+    // Curso e período derivam da matrícula e não são editáveis.
     @Transactional
     public Usuario atualizarPerfil(Long id, UsuarioDTO usuarioDTO) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
         usuario.setNomeCompleto(usuarioDTO.nomeCompleto());
-        usuario.setCurso(usuarioDTO.curso());
-        usuario.setPeriodo(usuarioDTO.periodo());
-        if (usuarioDTO.fotoPerfil() != null) {
-            usuario.setFotoPerfil(usuarioDTO.fotoPerfil());
-        }
         return usuarioRepository.save(usuario);
     }
 

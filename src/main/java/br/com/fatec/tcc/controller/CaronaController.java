@@ -29,7 +29,7 @@ public class CaronaController {
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm") LocalDateTime horarioFim,
 			Model model, Authentication auth) {
 		model.addAttribute("caronas",
-				caronaService.listarCaronasDisponiveis(origem, destino, horarioInicio, horarioFim));
+				caronaService.listarCaronasDisponiveis(auth.getName(), origem, destino, horarioInicio, horarioFim));
 		model.addAttribute("emailUsuario", auth.getName());
 		Usuario usuario = usuarioService.findUserByUsername(auth.getName());
 		model.addAttribute("isAdminOuModerador",
@@ -44,9 +44,15 @@ public class CaronaController {
 	}
 
 	@PostMapping("/nova")
-	public String oferecerCarona(@ModelAttribute CaronaRequestDTO request, Authentication auth) {
-		caronaService.oferecerCarona(request, auth.getName());
-		return "redirect:/caronas";
+	public String oferecerCarona(@ModelAttribute CaronaRequestDTO request, Authentication auth, Model model) {
+		try {
+			caronaService.oferecerCarona(request, auth.getName());
+			return "redirect:/caronas";
+		} catch (RuntimeException e) {
+			model.addAttribute("erro", e.getMessage());
+			model.addAttribute("carona", request);
+			return "caronas/nova";
+		}
 	}
 
 	@PostMapping("/{id}/solicitar")

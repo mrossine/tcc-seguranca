@@ -27,6 +27,11 @@ public class CaronaService {
 
     @Transactional
     public CaronaResponseDTO oferecerCarona(CaronaRequestDTO request, String email) {
+        if (request.getHorarioSaida() == null ||
+                request.getHorarioSaida().isBefore(LocalDateTime.now().plusMinutes(30))) {
+            throw new RuntimeException("O horário de saída deve ter pelo menos 30 minutos de antecedência.");
+        }
+
         Usuario motorista = usuarioService.findUserByUsername(email);
 
         Carona carona = new Carona();
@@ -44,12 +49,16 @@ public class CaronaService {
         return convertToResponseDTO(saved);
     }
 
-    public List<CaronaResponseDTO> listarCaronasDisponiveis(String origem, String destino,
+    public List<CaronaResponseDTO> listarCaronasDisponiveis(String email, String origem, String destino,
                                                             LocalDateTime horarioInicio,
                                                             LocalDateTime horarioFim) {
-        return caronaRepository
-                .buscarCaronasDisponiveis(LocalDateTime.now(), origem, destino, horarioInicio, horarioFim)
-                .stream()
+        List<Carona> abertas = caronaRepository
+                .buscarCaronasDisponiveis(LocalDateTime.now(), origem, destino, horarioInicio, horarioFim);
+        List<Carona> privadas = caronaRepository.buscarCaronasPrivadasDoUsuario(email);
+
+        List<Carona> todas = new java.util.ArrayList<>(abertas);
+        todas.addAll(privadas);
+        return todas.stream()
                 .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
@@ -100,6 +109,14 @@ public class CaronaService {
         participacao.setStatus(ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
         participacao.setDataConfirmacao(LocalDateTime.now());
         participacaoRepository.save(participacao);
+
+        // Verifica se todas as vagas foram preenchidas
+        long totalConfirmados = participacaoRepository.countByCaronaAndStatus(carona,
+                ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
+        if (totalConfirmados >= carona.getVagasDisponiveis()) {
+            carona.setStatus(Carona.StatusCarona.CHEIA);
+            caronaRepository.save(carona);
+        }
     }
 
     @Transactional
@@ -117,6 +134,21 @@ public class CaronaService {
         }
         participacao.setStatus(ParticipacaoCarona.StatusParticipacao.RECUSADA);
         participacaoRepository.save(participacao);
+    }
+
+    @Transactional
+    public void finalizarCarona(Long caronaId, String emailMotorista) {
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        Usuario motorista = usuarioService.findUserByUsername(emailMotorista);
+        if (!carona.getMotorista().getId().equals(motorista.getId())) {
+            throw new RuntimeException("Apenas o motorista pode finalizar a carona");
+        }
+        if (carona.getStatus() != Carona.StatusCarona.FECHADA) {
+            throw new RuntimeException("A carona só pode ser finalizada após o horário de início");
+        }
+        carona.setStatus(Carona.StatusCarona.FINALIZADA);
+        caronaRepository.save(carona);
     }
 
     @Transactional
@@ -147,7 +179,23 @@ public class CaronaService {
         if (!isMotorista && !isAdminOuModerador) {
             throw new RuntimeException("Sem permissão para excluir esta carona");
         }
-        caronaRepository.delete(carona);
+        if (isAdminOuModerador && !isMotorista) {
+            caronaRepository.delete(carona);
+            return;
+        }
+        // Motorista só pode cancelar se a carona ainda não começou
+        if (carona.getStatus() == Carona.StatusCarona.FECHADA) {
+            throw new RuntimeException("A carona já foi iniciada e não pode ser cancelada");
+        }
+        // Cancela em vez de excluir para preservar histórico
+        carona.setStatus(Carona.StatusCarona.CANCELADA);
+        for (ParticipacaoCarona p : carona.getParticipacoes()) {
+            if (p.getStatus() == ParticipacaoCarona.StatusParticipacao.SOLICITADA
+                    || p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA) {
+                p.setStatus(ParticipacaoCarona.StatusParticipacao.CANCELADA);
+            }
+        }
+        caronaRepository.save(carona);
     }
 
     public List<ParticipacaoCaronaDTO> listarSolicitacoesPorCarona(Long caronaId, String emailMotorista) {

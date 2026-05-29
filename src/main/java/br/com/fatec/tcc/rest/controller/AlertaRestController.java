@@ -3,12 +3,12 @@ package br.com.fatec.tcc.rest.controller;
 import br.com.fatec.tcc.dto.AlertaResponseDTO;
 import br.com.fatec.tcc.service.AlertaService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -19,8 +19,20 @@ public class AlertaRestController {
 
     @GetMapping("/alertas")
     public List<AlertaResponseDTO> listarAlertas(Authentication authentication) {
-        // Obtém o email do usuário logado e repassa para o service
         String email = authentication.getName();
         return alertaService.listarAlertasAtivos(email);
+    }
+
+    /**
+     * Exclusão de alerta via DELETE /api/alertas/{id}
+     */
+    @DeleteMapping("/alertas/{id}")
+    public ResponseEntity<?> excluirAlerta(@PathVariable Long id, Authentication authentication) {
+        try {
+            alertaService.removerAlerta(id, authentication.getName());
+            return ResponseEntity.ok(Map.of("message", "Alerta excluído com sucesso"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        }
     }
 }

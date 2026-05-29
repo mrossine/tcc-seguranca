@@ -18,8 +18,8 @@ public class CaronaRestController {
     private final CaronaService caronaService;
 
     @GetMapping
-    public List<CaronaResponseDTO> listarCaronasDisponiveis() {
-        return caronaService.listarCaronasDisponiveis(null, null, null, null);
+    public List<CaronaResponseDTO> listarCaronasDisponiveis(Authentication authentication) {
+        return caronaService.listarCaronasDisponiveis(authentication.getName(), null, null, null, null);
     }
 
     @GetMapping("/{id}")
@@ -60,6 +60,16 @@ public class CaronaRestController {
                                                Authentication auth) {
         try {
             caronaService.recusarPassageiro(caronaId, participacaoId, auth.getName());
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/finalizar")
+    public ResponseEntity<?> finalizarCarona(@PathVariable Long id, Authentication auth) {
+        try {
+            caronaService.finalizarCarona(id, auth.getName());
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

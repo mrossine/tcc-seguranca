@@ -28,7 +28,7 @@ public class Alerta {
     private String descricao;
     
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(30)")
     private TipoAlerta tipo;
     
     @Column(nullable = false)
@@ -41,6 +41,7 @@ public class Alerta {
     private LocalDateTime dataHora;
     
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(20)")
     private StatusAlerta status = StatusAlerta.ATIVO;
     
     @ManyToOne

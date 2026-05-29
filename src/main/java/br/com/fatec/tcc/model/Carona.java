@@ -45,6 +45,7 @@ public class Carona {
     private String observacoes;
     
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(20)")
     private StatusCarona status = StatusCarona.ABERTA;
     
     @CreatedDate
@@ -54,6 +55,10 @@ public class Carona {
     private List<ParticipacaoCarona> participacoes;
     
     public enum StatusCarona {
-        ABERTA, EM_ANDAMENTO, FINALIZADA, CANCELADA
+        ABERTA,     // tem vagas em aberto — visível para todos
+        CHEIA,      // todas as vagas preenchidas — visível só para motorista e passageiros confirmados
+        FECHADA,    // horário de saída passou — visível só para motorista e passageiros confirmados
+        FINALIZADA, // motorista finalizou a viagem — não aparece para ninguém
+        CANCELADA   // motorista cancelou antes do início
     }
 } 

@@ -13,6 +13,7 @@ import java.util.List;
 @Repository
 public interface AlertaRepository extends JpaRepository<Alerta, Long> {
     List<Alerta> findByStatusOrderByDataCriacaoDesc(Alerta.StatusAlerta status);
+    List<Alerta> findByStatusAndDataCriacaoAfterOrderByDataCriacaoDesc(Alerta.StatusAlerta status, LocalDateTime dataLimite);
     List<Alerta> findByUsuarioOrderByDataCriacaoDesc(Usuario usuario);
     
     @Query("SELECT a FROM Alerta a WHERE a.status = 'ATIVO' AND " +

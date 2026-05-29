@@ -40,12 +40,14 @@ public class AlertaService {
     }
 
     /**
-     * Lista TODOS os alertas ativos (sem filtro por usuário).
-     * Todos os usuários autenticados veem todos os alertas.
+     * Lista alertas ativos dos últimos 14 dias (visibilidade pública).
+     * Alertas mais antigos permanecem no banco para estatísticas.
      */
     public List<AlertaResponseDTO> listarAlertasAtivos(String emailLogado) {
         Usuario usuarioLogado = usuarioService.findUserByUsername(emailLogado);
-        List<Alerta> alertas = alertaRepository.findByStatusOrderByDataCriacaoDesc(Alerta.StatusAlerta.ATIVO);
+        LocalDateTime limite = LocalDateTime.now().minusDays(14);
+        List<Alerta> alertas = alertaRepository
+                .findByStatusAndDataCriacaoAfterOrderByDataCriacaoDesc(Alerta.StatusAlerta.ATIVO, limite);
         return alertas.stream()
                 .map(alerta -> convertToResponseDTO(alerta, usuarioLogado))
                 .collect(Collectors.toList());

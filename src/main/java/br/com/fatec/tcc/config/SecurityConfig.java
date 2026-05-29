@@ -22,10 +22,10 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/",
             "/login",
-            // ✅ FIX 1: /cadastro não estava na lista — usuário era redirecionado para login
             "/cadastro",
             "/cadastro/**",
             "/api/auth/register",
+            "/api/auth/login",
             "/css/**",
             "/js/**",
             "/images/**",
@@ -51,7 +51,6 @@ public class SecurityConfig {
                                         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
                                         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
                                         "img-src 'self' data: https://placehold.co; " +
-                                        // ✅ FIX 2: cdn.jsdelivr.net não estava no font-src — ícones não carregavam
                                         "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;")
                         )
                         .referrerPolicy(referrer -> referrer
@@ -67,10 +66,9 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/alertas", true)
+                        // FIX 1: Redirecionar para /dashboard após login bem-sucedido
+                        .defaultSuccessUrl("/dashboard", true)
                         .failureUrl("/login?erro=true")
-                        // ✅ FIX 3: login.html usa name="username" e name="password"
-                        // mas o config pedia "email" e "senha" — Spring Security ignorava os campos
                         .usernameParameter("username")
                         .passwordParameter("password")
                         .permitAll()

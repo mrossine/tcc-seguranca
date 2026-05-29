@@ -43,6 +43,25 @@
 .btn-submit:hover {
 	transform: scale(1.05);
 }
+
+.sidebar .logout-btn {
+	color: rgba(255, 255, 255, 0.8);
+	text-decoration: none;
+	padding: 10px 15px;
+	display: block;
+	transition: all 0.3s;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	font-size: 1rem;
+}
+
+.sidebar .logout-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 10px;
+}
 </style>
 </head>
 <body>
@@ -65,8 +84,11 @@
 					</a> 
 					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
 					</a> 
-					<a href="/logout"> <i class="bi bi-box-arrow-right"></i> Sair
-					</a>
+					<form th:action="@{/logout}" method="post">
+						<button type="submit" class="logout-btn">
+							<i class="bi bi-box-arrow-right"></i> Sair
+						</button>
+					</form>
 				</nav>
 			</div>
 
@@ -79,6 +101,11 @@
 							class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
 						</span>
 					</div>
+				</div>
+
+				<div th:if="${erro}" class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+					<i class="bi bi-exclamation-triangle-fill me-2"></i>
+					<span th:text="${erro}"></span>
 				</div>
 
 				<div class="card">

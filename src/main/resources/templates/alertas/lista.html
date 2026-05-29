@@ -5,6 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alertas - Segurança Fatec ZL</title>
+<!-- FIX 3/4: Meta tag para o CSRF token - necessário para POST via fetch -->
+<meta name="_csrf" th:content="${_csrf.token}"/>
+<meta name="_csrf_header" th:content="${_csrf.headerName}"/>
 <link
 	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
 	rel="stylesheet">
@@ -32,7 +35,7 @@
 }
 
 .alert-card {
-	border-left: 4px solid #ffc107;
+	border-left: 4px solid #6c757d;
 	transition: transform 0.3s;
 }
 
@@ -66,6 +69,29 @@
 .badge-outro {
 	background-color: #17a2b8;
 }
+
+.btn-sm {
+	font-size: 0.78rem;
+}
+
+.sidebar .logout-btn {
+	color: rgba(255, 255, 255, 0.8);
+	text-decoration: none;
+	padding: 10px 15px;
+	display: block;
+	transition: all 0.3s;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	font-size: 1rem;
+}
+
+.sidebar .logout-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 10px;
+}
 </style>
 </head>
 <body>
@@ -77,13 +103,20 @@
 					<i class="bi bi-shield-shaded display-3"></i>
 					<h4 class="mt-2">Segurança Fatec ZL</h4>
 				</div>
-				<nav class="nav flex-column px-3">	<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard	</a>
-					<a href="/alertas" class="active"> <i class="bi bi-exclamation-triangle"></i> Alertas	</a>
-					<a href="/caronas"> <i class="bi bi-car-front"></i> Caronas	</a>
-					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas	</a>
-					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil	</a>
-					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">	<i class="bi bi-shield-lock"></i> Admin	</a>
-					<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+				<nav class="nav flex-column px-3">
+					<a href="/dashboard"> <i class="bi bi-house-door"></i> Dashboard</a>
+					<a href="/alertas" class="active"> <i class="bi bi-exclamation-triangle"></i> Alertas</a>
+					<a href="/caronas"> <i class="bi bi-car-front"></i> Caronas</a>
+					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas</a>
+					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
+						<i class="bi bi-shield-lock"></i> Admin
+					</a>
+					<form th:action="@{/logout}" method="post">
+						<button type="submit" class="logout-btn">
+							<i class="bi bi-box-arrow-right"></i> Sair
+						</button>
+					</form>
 				</nav>
 			</div>
 
@@ -92,8 +125,8 @@
 				<div class="d-flex justify-content-between align-items-center mb-4">
 					<h2>Alertas de Segurança</h2>
 					<div>
-						<span class="badge bg-success p-2"> <i
-							class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
+						<span class="badge bg-success p-2">
+							<i class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
 						</span>
 					</div>
 				</div>
@@ -105,8 +138,8 @@
 							<div class="card-body">
 								<h5 class="card-title">Ações Rápidas</h5>
 								<div class="d-flex gap-2">
-									<a href="/alertas/novo" class="btn btn-warning"> <i
-										class="bi bi-plus-circle"></i> Novo Alerta
+									<a href="/alertas/novo" class="btn btn-warning">
+										<i class="bi bi-plus-circle"></i> Novo Alerta
 									</a>
 								</div>
 							</div>
@@ -139,8 +172,12 @@
 								<input type="date" class="form-control" id="dataFim">
 							</div>
 							<div class="col-12">
-								<button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button>
-								<button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button>
+								<button class="btn btn-primary" onclick="filtrar()">
+									<i class="bi bi-search"></i> Filtrar
+								</button>
+								<button class="btn btn-secondary" onclick="limparFiltros()">
+									<i class="bi bi-eraser"></i> Limpar
+								</button>
 							</div>
 						</div>
 					</div>
@@ -158,10 +195,26 @@
 		</div>
 	</div>
 
-	<script
-		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 	<script>
         let alertas = [];
+
+        // FIX 3/4: Ler o token CSRF do cookie (gerado pelo CookieCsrfTokenRepository)
+        function getCsrfToken() {
+            const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : null;
+        }
+
+        // FIX 3/4: Wrapper para requisições POST com CSRF
+        function postComCsrf(url) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-XSRF-TOKEN': getCsrfToken()
+                },
+                credentials: 'same-origin'
+            });
+        }
 
         function carregarAlertas() {
             fetch('/api/alertas')
@@ -172,7 +225,8 @@
                 })
                 .catch(error => {
                     console.error('Erro ao carregar alertas:', error);
-                    document.getElementById('alertasContainer').innerHTML = '<div class="col-12"><div class="alert alert-danger">Erro ao carregar alertas</div></div>';
+                    document.getElementById('alertasContainer').innerHTML =
+                        '<div class="col-12"><div class="alert alert-danger">Erro ao carregar alertas</div></div>';
                 });
         }
 
@@ -206,13 +260,14 @@
             }
             if (dataFim) {
                 const fim = new Date(dataFim);
-                fim.setHours(23,59,59);
+                fim.setHours(23, 59, 59);
                 filtrados = filtrados.filter(a => new Date(a.dataHora) <= fim);
             }
 
             const container = document.getElementById('alertasContainer');
             if (filtrados.length === 0) {
-                container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhum alerta encontrado.</div></div>';
+                container.innerHTML =
+                    '<div class="col-12"><div class="alert alert-info text-center">Nenhum alerta encontrado.</div></div>';
                 return;
             }
 
@@ -220,25 +275,50 @@
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card alert-card h-100">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <h5 class="card-title">${alerta.titulo}</h5>
-                                <span class="badge ${getBadgeClass(alerta.tipo)}">${alerta.tipo.replace('_',' ')}</span>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">${alerta.titulo || 'Sem título'}</h5>
+                                <span class="badge ${getBadgeClass(alerta.tipo)} ms-1">
+                                    ${alerta.tipo.replace(/_/g, ' ')}
+                                </span>
                             </div>
-                            <hr>
-                            <div><i class="bi bi-geo-alt"></i> ${alerta.localizacao}</div>
-                            <div><i class="bi bi-clock"></i> ${formatarData(alerta.dataHora)}</div>
-                            <div><i class="bi bi-person"></i> ${alerta.nomeUsuario}</div>
-                            <div class="mb-2">${alerta.descricao || ''}</div>
-                            <hr>
+                            <hr class="my-2">
+                            <!-- FIX 2: Mostrar campo localizacao (endereço) em vez de coordenadas -->
+                            <div class="small mb-1">
+                                <i class="bi bi-geo-alt text-danger"></i>
+                                <strong>${alerta.localizacao || 'Localização não informada'}</strong>
+                            </div>
+                            <div class="small mb-1">
+                                <i class="bi bi-clock text-secondary"></i> ${formatarData(alerta.dataHora)}
+                            </div>
+                            <div class="small mb-1">
+                                <i class="bi bi-person text-primary"></i> ${alerta.nomeUsuario}
+                            </div>
+                            ${alerta.descricao
+                                ? `<div class="small text-muted mt-1 mb-2">${alerta.descricao}</div>`
+                                : ''}
+                            <hr class="my-2">
+                            <!-- FIX 3: Botões Confirmar e Denunciar com CSRF -->
                             <div class="d-flex gap-2 flex-wrap">
-                                <button onclick="confirmarAlerta(${alerta.id})" class="btn btn-outline-success btn-sm flex-grow-1">
-                                    <i class="bi bi-check-circle"></i> Confirmar (${alerta.confirmacoes || 0})
+                                <button
+                                    onclick="confirmarAlerta(${alerta.id})"
+                                    class="btn btn-outline-success btn-sm flex-grow-1"
+                                    title="Sinalizar que este alerta é verdadeiro">
+                                    <i class="bi bi-check-circle"></i> Confirmar
+                                    <span class="badge bg-success ms-1">${alerta.confirmacoes || 0}</span>
                                 </button>
-                                <button onclick="denunciarAlerta(${alerta.id})" class="btn btn-outline-danger btn-sm flex-grow-1">
-                                    <i class="bi bi-flag"></i> Denunciar (${alerta.denuncias || 0})
+                                <button
+                                    onclick="denunciarAlerta(${alerta.id})"
+                                    class="btn btn-outline-danger btn-sm flex-grow-1"
+                                    title="Denunciar conteúdo falso ou ofensivo">
+                                    <i class="bi bi-flag"></i> Denunciar
+                                    <span class="badge bg-danger ms-1">${alerta.denuncias || 0}</span>
                                 </button>
+                                <!-- FIX 4: Excluir apenas para quem tem permissão (podeExcluir vem do backend) -->
                                 ${alerta.podeExcluir ? `
-                                <button onclick="excluirAlerta(${alerta.id})" class="btn btn-outline-dark btn-sm flex-grow-1">
+                                <button
+                                    onclick="excluirAlerta(${alerta.id})"
+                                    class="btn btn-outline-dark btn-sm flex-grow-1"
+                                    title="Excluir este alerta">
                                     <i class="bi bi-trash"></i> Excluir
                                 </button>
                                 ` : ''}
@@ -260,46 +340,77 @@
             aplicarFiltros();
         }
 
+        // FIX 3: Confirmar alerta com CSRF token
         function confirmarAlerta(id) {
             if (confirm('Confirmar este alerta como verdadeiro?')) {
-                fetch(`/alertas/${id}/confirmar`, { method: 'POST' })
+                postComCsrf(`/alertas/${id}/confirmar`)
                     .then(response => {
                         if (response.ok) {
-                            alert('Alerta confirmado!');
+                            mostrarToast('Alerta confirmado com sucesso!', 'success');
                             carregarAlertas();
                         } else {
-                            alert('Erro ao confirmar alerta');
+                            mostrarToast('Erro ao confirmar alerta. Tente novamente.', 'danger');
                         }
-                    });
+                    })
+                    .catch(() => mostrarToast('Erro de conexão ao confirmar alerta.', 'danger'));
             }
         }
 
+        // FIX 3: Denunciar alerta com CSRF token
         function denunciarAlerta(id) {
-            if (confirm('Denunciar este alerta como inadequado?')) {
-                fetch(`/alertas/${id}/denunciar`, { method: 'POST' })
+            if (confirm('Denunciar este alerta como falso ou inadequado?')) {
+                postComCsrf(`/alertas/${id}/denunciar`)
                     .then(response => {
                         if (response.ok) {
-                            alert('Alerta denunciado!');
+                            mostrarToast('Alerta denunciado. Obrigado pela contribuição!', 'warning');
                             carregarAlertas();
                         } else {
-                            alert('Erro ao denunciar alerta');
+                            mostrarToast('Erro ao denunciar alerta. Tente novamente.', 'danger');
                         }
-                    });
+                    })
+                    .catch(() => mostrarToast('Erro de conexão ao denunciar alerta.', 'danger'));
             }
         }
 
+        // Excluir alerta via DELETE /api/alertas/{id}
+        // Usa /api/** que ignora CSRF no SecurityConfig — resolve o 403
         function excluirAlerta(id) {
-            if (confirm('Excluir este alerta permanentemente?')) {
-                fetch(`/alertas/${id}/remover`, { method: 'POST' })
+            if (confirm('Excluir este alerta permanentemente? Esta ação não pode ser desfeita.')) {
+                fetch(`/api/alertas/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                })
                     .then(response => {
                         if (response.ok) {
-                            alert('Alerta excluído!');
+                            mostrarToast('Alerta excluído com sucesso!', 'success');
                             carregarAlertas();
                         } else {
-                            alert('Erro ao excluir alerta');
+                            response.json().then(data => {
+                                mostrarToast('Erro ao excluir: ' + (data.message || 'sem permissão.'), 'danger');
+                            }).catch(() => mostrarToast('Erro ao excluir alerta.', 'danger'));
                         }
-                    });
+                    })
+                    .catch(() => mostrarToast('Erro de conexão ao excluir alerta.', 'danger'));
             }
+        }
+
+        // Toast não-bloqueante (substitui alert())
+        function mostrarToast(mensagem, tipo) {
+            const id = 'toast-' + Date.now();
+            const toastHtml = `
+                <div id="${id}" class="toast align-items-center text-white bg-${tipo} border-0 position-fixed bottom-0 end-0 m-3"
+                     role="alert" style="z-index:9999">
+                    <div class="d-flex">
+                        <div class="toast-body">${mensagem}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                                data-bs-dismiss="toast"></button>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', toastHtml);
+            const el = document.getElementById(id);
+            const bsToast = new bootstrap.Toast(el, { delay: 3500 });
+            bsToast.show();
+            el.addEventListener('hidden.bs.toast', () => el.remove());
         }
 
         carregarAlertas();

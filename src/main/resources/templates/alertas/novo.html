@@ -5,11 +5,8 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Novo Alerta - Segurança Fatec ZL</title>
-	<link
-			href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-			rel="stylesheet">
-	<link rel="stylesheet"
-	      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 	<style>
 		.sidebar {
 			min-height: 100vh;
@@ -43,13 +40,32 @@
 			padding: 12px 30px;
 			border-radius: 25px;
 			font-weight: bold;
+			color: white;
 		}
 		.btn-submit:hover {
 			transform: scale(1.05);
+			color: white;
 		}
 		.detalhes-opcional {
 			display: none;
 			margin-top: 20px;
+		}
+		.sidebar .logout-btn {
+			color: rgba(255, 255, 255, 0.8);
+			text-decoration: none;
+			padding: 10px 15px;
+			display: block;
+			transition: all 0.3s;
+			width: 100%;
+			text-align: left;
+			background: none;
+			border: none;
+			font-size: 1rem;
+		}
+		.sidebar .logout-btn:hover {
+			background: rgba(255, 255, 255, 0.2);
+			color: white;
+			border-radius: 10px;
 		}
 	</style>
 </head>
@@ -68,7 +84,11 @@
 				<a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
 				<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
 				<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
-				<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+				<form th:action="@{/logout}" method="post">
+					<button type="submit" class="logout-btn">
+						<i class="bi bi-box-arrow-right"></i> Sair
+					</button>
+				</form>
 			</nav>
 		</div>
 
@@ -76,16 +96,15 @@
 		<div class="col-md-9 col-lg-10 px-4 py-3">
 			<div class="d-flex justify-content-between align-items-center mb-4">
 				<h2>Novo Alerta</h2>
-				<div>
-						<span class="badge bg-success p-2">
-							<i class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
-						</span>
-				</div>
+				<span class="badge bg-success p-2">
+					<i class="bi bi-person-circle"></i> <span sec:authentication="name"></span>
+				</span>
 			</div>
 
 			<div class="card">
 				<div class="card-body p-4">
 					<form id="alertaForm" method="post" th:action="@{/alertas/novo}" th:object="${alerta}">
+
 						<!-- Tipo de Ocorrência -->
 						<div class="mb-4">
 							<label class="fw-bold">Selecione o tipo de ocorrência</label>
@@ -122,51 +141,61 @@
 								</div>
 							</div>
 							<input type="hidden" th:field="*{tipo}" id="tipoAlerta" required>
-							<div class="invalid-feedback">Selecione um tipo de ocorrência</div>
 						</div>
 
 						<!-- Localização -->
 						<div class="mb-3">
-							<label class="fw-bold"><i class="bi bi-geo-alt"></i> Localização (automática)</label>
+							<label class="fw-bold"><i class="bi bi-geo-alt"></i> Localização</label>
 							<div class="input-group">
-								<input type="text" class="form-control" th:field="*{localizacao}" id="localizacaoDescritiva" placeholder="Ex: Rua X, 123 — ou use o botão abaixo para detectar automaticamente" required>
-								<button type="button" class="btn btn-outline-secondary" id="btnLocalizacaoAtual">
-									<i class="bi bi-crosshair"></i> Atualizar localização
+								<input type="text"
+								       class="form-control"
+								       th:field="*{localizacao}"
+								       id="localizacaoDescritiva"
+								       placeholder="Clique em 'Detectar' ou preencha manualmente"
+								       required>
+								<button type="button" class="btn btn-outline-secondary" id="btnDetectar">
+									<i class="bi bi-crosshair"></i> Detectar
 								</button>
 							</div>
-							<small class="text-muted">Sua localização atual será usada automaticamente</small>
+							<div id="statusLocalizacao" class="form-text text-muted mt-1">
+								<i class="bi bi-info-circle"></i>
+								Clique em "Detectar" para usar sua localização atual, ou preencha o endereço manualmente.
+							</div>
 						</div>
 
-						<!-- Coordenadas (ocultas) -->
-						<input type="hidden" th:field="*{latitude}" id="latitude">
+						<!-- Coordenadas ocultas -->
+						<input type="hidden" th:field="*{latitude}"  id="latitude">
 						<input type="hidden" th:field="*{longitude}" id="longitude">
 
-						<!-- Link para adicionar mais informações -->
+						<!-- Toggle campos opcionais -->
 						<div class="text-center mb-3">
 							<a href="#" id="toggleDetalhesBtn" class="text-decoration-none">
 								<i class="bi bi-plus-circle"></i> Adicionar mais informações (título e descrição)
 							</a>
 						</div>
 
-						<!-- Campos opcionais (inicialmente ocultos) -->
 						<div id="detalhesOpcionais" class="detalhes-opcional">
 							<div class="mb-3">
 								<label class="fw-bold">Título (opcional)</label>
-								<input type="text" class="form-control" th:field="*{titulo}" id="titulo" placeholder="Ex: Assalto a mão armada">
+								<input type="text" class="form-control" th:field="*{titulo}" id="titulo"
+								       placeholder="Ex: Assalto a mão armada">
 							</div>
 							<div class="mb-3">
 								<label class="fw-bold">Descrição (opcional)</label>
-								<textarea class="form-control" th:field="*{descricao}" id="descricao" rows="3" placeholder="Descreva o ocorrido..."></textarea>
+								<textarea class="form-control" th:field="*{descricao}" id="descricao"
+								          rows="3" placeholder="Descreva o ocorrido..."></textarea>
 							</div>
 						</div>
 
-						<!-- Aviso -->
 						<div class="alert alert-warning mt-3">
-							<i class="bi bi-info-circle"></i> Alertas falsos serão removidos e podem resultar em suspensão da conta.
+							<i class="bi bi-info-circle"></i>
+							Alertas falsos serão removidos e podem resultar em suspensão da conta.
 						</div>
 
-						<button type="submit" class="btn btn-submit"><i class="bi bi-send"></i> Publicar Alerta</button>
-						<a href="/alertas" class="btn btn-secondary">Cancelar</a>
+						<button type="submit" class="btn btn-submit">
+							<i class="bi bi-send"></i> Publicar Alerta
+						</button>
+						<a href="/alertas" class="btn btn-secondary ms-2">Cancelar</a>
 					</form>
 				</div>
 			</div>
@@ -176,142 +205,151 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-	// Seleção do tipo de alerta
-	const cards = document.querySelectorAll('.alert-type-card');
+	// ── Seleção do tipo ───────────────────────────────────────────────────
 	const tipoInput = document.getElementById('tipoAlerta');
-	cards.forEach(card => {
+	document.querySelectorAll('.alert-type-card').forEach(card => {
 		card.addEventListener('click', () => {
-			cards.forEach(c => c.classList.remove('selected'));
+			document.querySelectorAll('.alert-type-card').forEach(c => c.classList.remove('selected'));
 			card.classList.add('selected');
 			tipoInput.value = card.dataset.tipo;
 		});
 	});
 
-	// Função para converter coordenadas em endereço (reverse geocoding)
-	async function reverseGeocode(lat, lng) {
-		const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-		try {
-			const response = await fetch(url, {
-				headers: {
-					'User-Agent': 'SegurancaFatecZL/1.0 (https://github.com/seu-usuario/tcc-seguranca)'
-				}
-			});
-			const data = await response.json();
-			if (data && data.display_name) {
-				// Extrair partes principais: rua, bairro, cidade
-				const address = data.address;
-				const rua = address.road || address.pedestrian || address.path || '';
-				const bairro = address.suburb || address.neighbourhood || address.district || '';
-				const cidade = address.city || address.town || address.village || '';
-				const estado = address.state || '';
-				// Formata endereço
-				let endereco = '';
-				if (rua) endereco += rua;
-				if (bairro) endereco += (endereco ? ', ' : '') + bairro;
-				if (cidade) endereco += (endereco ? ' - ' : '') + cidade;
-				if (estado) endereco += (endereco ? '/' : '') + estado;
-				// Se não conseguiu montar, usa display_name
-				if (!endereco) endereco = data.display_name;
-				return endereco;
-			} else {
-				return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-			}
-		} catch (error) {
-			console.error('Erro no reverse geocoding:', error);
-			return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-		}
+	// ── Geocoding via BACKEND (evita bloqueio CORS/User-Agent do Nominatim) ──
+	async function reverseGeocodeViaBackend(lat, lng) {
+		// Chama o endpoint Java que faz a requisição ao Nominatim pelo servidor
+		const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`, {
+			credentials: 'same-origin'
+		});
+		if (!response.ok) throw new Error('Endpoint de geocoding indisponível');
+		const data = await response.json();
+		return data.endereco || null;  // null se não conseguiu converter
 	}
 
-	// Função de geolocalização modificada
+	// ── Obter localização do dispositivo ─────────────────────────────────
 	async function obterLocalizacao() {
-		if (navigator.geolocation) {
-			navigator.geolocation.getCurrentPosition(
-					async (position) => {
-						const lat = position.coords.latitude;
-						const lng = position.coords.longitude;
-						document.getElementById('latitude').value = lat;
-						document.getElementById('longitude').value = lng;
-						mostrarToast('Coordenadas capturadas. Obtendo endereço...', 'info');
-						// Converte coordenadas em endereço
-						const endereco = await reverseGeocode(lat, lng);
-						document.getElementById('localizacaoDescritiva').value = endereco;
-						mostrarToast('Localização atualizada com endereço!', 'success');
-					},
-					(error) => {
-						console.warn('Erro ao obter localização:', error.message);
-						mostrarToast('Não foi possível obter sua localização. Preencha manualmente.', 'warning');
-					}
-			);
-		} else {
-			mostrarToast('Seu navegador não suporta geolocalização.', 'danger');
+		const campo  = document.getElementById('localizacaoDescritiva');
+		const btn    = document.getElementById('btnDetectar');
+		const status = document.getElementById('statusLocalizacao');
+
+		if (!navigator.geolocation) {
+			setStatus('Geolocalização não suportada. Preencha o endereço manualmente.', 'danger');
+			return;
 		}
+
+		// Feedback visual
+		btn.disabled = true;
+		btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Detectando...';
+		setStatus('Obtendo sua posição GPS...', 'info');
+
+		navigator.geolocation.getCurrentPosition(
+			async (position) => {
+				const lat = position.coords.latitude;
+				const lng = position.coords.longitude;
+
+				// Salva coordenadas nos campos ocultos
+				document.getElementById('latitude').value  = lat;
+				document.getElementById('longitude').value = lng;
+
+				setStatus('Convertendo coordenadas em endereço...', 'info');
+
+				try {
+					// Chama o backend para converter em endereço
+					const endereco = await reverseGeocodeViaBackend(lat, lng);
+
+					if (endereco) {
+						campo.value = endereco;
+						setStatus(
+							'<i class="bi bi-check-circle-fill text-success"></i> Endereço detectado. Edite se necessário.',
+							'success'
+						);
+					} else {
+						// Backend não conseguiu converter: pede preenchimento manual
+						campo.value = '';
+						campo.placeholder = 'Endereço não encontrado. Digite manualmente.';
+						setStatus(
+							'<i class="bi bi-exclamation-circle"></i> Não foi possível obter o endereço. Preencha manualmente.',
+							'warning'
+						);
+					}
+				} catch (e) {
+					campo.value = '';
+					setStatus('Erro ao converter coordenadas. Preencha o endereço manualmente.', 'warning');
+				}
+
+				btn.disabled = false;
+				btn.innerHTML = '<i class="bi bi-crosshair"></i> Detectar';
+			},
+			(error) => {
+				btn.disabled = false;
+				btn.innerHTML = '<i class="bi bi-crosshair"></i> Detectar';
+
+				const msgs = {
+					1: 'Permissão de localização negada pelo navegador. Preencha manualmente.',
+					2: 'Posição indisponível. Verifique o GPS e tente novamente.',
+					3: 'Tempo esgotado ao obter localização. Tente novamente.'
+				};
+				setStatus(msgs[error.code] || 'Erro ao obter localização.', 'warning');
+			},
+			{ timeout: 10000, maximumAge: 30000 }
+		);
 	}
 
-	// Botão manual para obter localização
-	document.getElementById('btnLocalizacaoAtual').addEventListener('click', obterLocalizacao);
-
-	// Mostrar toast simples
-	function mostrarToast(mensagem, tipo) {
-		const toast = document.createElement('div');
-		toast.className = `toast align-items-center text-white bg-${tipo} border-0 position-fixed bottom-0 end-0 m-3`;
-		toast.role = 'alert';
-		toast.innerHTML = `
-				<div class="d-flex">
-					<div class="toast-body">${mensagem}</div>
-					<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-				</div>
-			`;
-		document.body.appendChild(toast);
-		const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
-		bsToast.show();
-		toast.addEventListener('hidden.bs.toast', () => toast.remove());
+	function setStatus(msg, tipo) {
+		const el = document.getElementById('statusLocalizacao');
+		const cores = {
+			info:    'text-primary',
+			success: 'text-success',
+			warning: 'text-warning',
+			danger:  'text-danger'
+		};
+		el.className = 'form-text mt-1 ' + (cores[tipo] || 'text-muted');
+		el.innerHTML = msg;
 	}
 
-	// Toggle para detalhes adicionais
-	const toggleBtn = document.getElementById('toggleDetalhesBtn');
-	const detalhesDiv = document.getElementById('detalhesOpcionais');
+	document.getElementById('btnDetectar').addEventListener('click', obterLocalizacao);
+
+	// ── Toggle campos opcionais ───────────────────────────────────────────
 	let detalhesVisiveis = false;
+	const toggleBtn   = document.getElementById('toggleDetalhesBtn');
+	const detalhesDiv = document.getElementById('detalhesOpcionais');
 	toggleBtn.addEventListener('click', (e) => {
 		e.preventDefault();
 		detalhesVisiveis = !detalhesVisiveis;
-		if (detalhesVisiveis) {
-			detalhesDiv.style.display = 'block';
-			toggleBtn.innerHTML = '<i class="bi bi-dash-circle"></i> Ocultar informações adicionais';
-		} else {
-			detalhesDiv.style.display = 'none';
-			toggleBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar mais informações (título e descrição)';
-		}
+		detalhesDiv.style.display = detalhesVisiveis ? 'block' : 'none';
+		toggleBtn.innerHTML = detalhesVisiveis
+			? '<i class="bi bi-dash-circle"></i> Ocultar informações adicionais'
+			: '<i class="bi bi-plus-circle"></i> Adicionar mais informações (título e descrição)';
 	});
 
-	// Validação do formulário
+	// ── Validação antes de enviar ─────────────────────────────────────────
 	document.getElementById('alertaForm').addEventListener('submit', function(e) {
 		if (!tipoInput.value) {
 			e.preventDefault();
-			alert('Selecione um tipo de ocorrência');
+			alert('Selecione um tipo de ocorrência antes de publicar.');
 			return;
 		}
-		const localizacao = document.getElementById('localizacaoDescritiva').value;
+		const localizacao = document.getElementById('localizacaoDescritiva').value.trim();
 		if (!localizacao) {
 			e.preventDefault();
-			alert('A localização é obrigatória');
+			alert('A localização é obrigatória. Clique em "Detectar" ou preencha manualmente.');
 			return;
 		}
-		// Se título estiver vazio, gera automaticamente com base no tipo e localização
+		// Gera título automático se estiver vazio
 		const tituloInput = document.getElementById('titulo');
 		if (!tituloInput.value.trim()) {
-			const tipoSelecionado = tipoInput.value;
-			const tipoDesc = tipoSelecionado === 'FURTO' ? 'Furto' :
-					tipoSelecionado === 'ROUBO' ? 'Roubo' :
-							tipoSelecionado === 'ATIVIDADE_SUSPEITA' ? 'Atividade Suspeita' :
-									tipoSelecionado === 'FALTA_ILUMINACAO' ? 'Falta de Iluminação' : 'Ocorrência';
-			tituloInput.value = `${tipoDesc} - ${localizacao.substring(0, 50)}`;
+			const map = {
+				FURTO: 'Furto', ROUBO: 'Roubo',
+				ATIVIDADE_SUSPEITA: 'Atividade Suspeita',
+				FALTA_ILUMINACAO: 'Falta de Iluminação',
+				OUTRO: 'Ocorrência'
+			};
+			tituloInput.value = `${map[tipoInput.value] || 'Ocorrência'} — ${localizacao.substring(0, 60)}`;
 		}
 	});
 
-	// Obter localização ao carregar a página
-	window.addEventListener('load', () => {
-		obterLocalizacao();
-	});
+	// Detecta localização ao carregar a página automaticamente
+	window.addEventListener('load', obterLocalizacao);
 </script>
 </body>
 </html>

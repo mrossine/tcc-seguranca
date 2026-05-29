@@ -29,10 +29,30 @@
         .carona-card:hover { transform: translateY(-3px); }
         .carona-card.minha-carona { border-left: 4px solid #667eea; }
         .filter-card { background-color: #f8f9fa; border: none; border-radius: 10px; }
-        .badge-vagas { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
-        .badge-cancelada { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
-        .badge-minha { background-color: #667eea; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
-        .badge-pendente { background-color: #ffc107; color: #000; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
+        .badge-vagas      { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-cheia      { background-color: #fd7e14; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-fechada    { background-color: #6c757d; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-finalizada { background-color: #0d6efd; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-cancelada  { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; }
+        .badge-minha     { background-color: #667eea; color: white; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
+        .badge-pendente  { background-color: #ffc107; color: #000; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
+        .sidebar .logout-btn {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            font-size: 1rem;
+        }
+        .sidebar .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
@@ -50,7 +70,11 @@
                 <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
                 <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
                 <a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
-                <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </form>
             </nav>
         </div>
  
@@ -157,9 +181,12 @@
         const vagasLivres = (carona.vagasDisponiveis || 0) - (carona.vagasOcupadas || 0);
         const podeExcluir = souMotorista || isAdminOuModerador;
  
-        const badgeStatus = carona.status === 'CANCELADA'
-            ? `<span class="badge-cancelada"><i class="bi bi-x-circle"></i> Cancelada</span>`
-            : `<span class="badge-vagas"><i class="bi bi-people"></i> ${carona.vagasOcupadas || 0}/${carona.vagasDisponiveis} vagas</span>`;
+        const badgeStatus = {
+            'CANCELADA':  `<span class="badge-cancelada"><i class="bi bi-x-circle"></i> Cancelada</span>`,
+            'CHEIA':      `<span class="badge-cheia"><i class="bi bi-people-fill"></i> Cheia</span>`,
+            'FECHADA':    `<span class="badge-fechada"><i class="bi bi-lock-fill"></i> Fechada</span>`,
+            'FINALIZADA': `<span class="badge-finalizada"><i class="bi bi-check-circle-fill"></i> Finalizada</span>`
+        }[carona.status] || `<span class="badge-vagas"><i class="bi bi-people"></i> ${carona.vagasOcupadas || 0}/${carona.vagasDisponiveis} vagas</span>`;
  
         const labelMinha = souMotorista
             ? `<span class="badge-minha ms-1"><i class="bi bi-star-fill"></i> Minha carona</span>` : '';
@@ -169,15 +196,22 @@
             ? `<button onclick="solicitarVaga(${carona.id})" class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Solicitar Vaga</button>`
             : '';
  
-        // Botão de solicitações: só para o motorista, carona aberta
-        const btnSolicitacoes = (souMotorista && carona.status === 'ABERTA')
+        // Botão de solicitações: só para o motorista, carona aberta ou cheia
+        const btnSolicitacoes = (souMotorista && (carona.status === 'ABERTA' || carona.status === 'CHEIA'))
             ? `<button onclick="abrirSolicitacoes(${carona.id})" class="btn btn-warning btn-sm">
                    <i class="bi bi-people-fill"></i> Ver Solicitações
                </button>`
             : '';
- 
-        // Botão excluir: motorista, admin ou moderador
-        const btnExcluir = (podeExcluir && carona.status !== 'CANCELADA')
+
+        // Botão finalizar: só para o motorista quando a carona está FECHADA
+        const btnFinalizar = (souMotorista && carona.status === 'FECHADA')
+            ? `<button onclick="finalizarCarona(${carona.id})" class="btn btn-primary btn-sm">
+                   <i class="bi bi-check-circle"></i> Finalizar Viagem
+               </button>`
+            : '';
+
+        // Botão excluir: motorista, admin ou moderador — oculto se FINALIZADA ou CANCELADA
+        const btnExcluir = (podeExcluir && carona.status !== 'CANCELADA' && carona.status !== 'FINALIZADA')
             ? `<button onclick="excluirCarona(${carona.id})" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Excluir</button>`
             : '';
  
@@ -203,6 +237,7 @@
                             <a href="/caronas/${carona.id}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-eye"></i> Detalhes</a>
                             ${btnSolicitar}
                             ${btnSolicitacoes}
+                            ${btnFinalizar}
                             ${btnExcluir}
                         </div>
                     </div>
@@ -292,6 +327,17 @@
             .catch(err => alert('Erro: ' + err.message));
     }
  
+    function finalizarCarona(id) {
+        if (confirm('Confirmar finalização da viagem? A carona será removida da listagem de todos os participantes.')) {
+            fetch(`/api/caronas/${id}/finalizar`, { method: 'PUT' })
+                .then(res => {
+                    if (res.ok) { alert('Viagem finalizada com sucesso!'); carregarCaronas(); }
+                    else return res.text().then(msg => { throw new Error(msg); });
+                })
+                .catch(err => alert('Erro: ' + err.message));
+        }
+    }
+
     function filtrar() { aplicarFiltros(); }
     function limparFiltros() {
         document.getElementById('filtroOrigem').value = '';

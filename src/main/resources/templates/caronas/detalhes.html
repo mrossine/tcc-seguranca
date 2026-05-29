@@ -31,6 +31,23 @@
         .status-FINALIZADA { background: #6c757d; color: white; }
         .status-CANCELADA { background: #dc3545; color: white; }
         .info-row { padding: 12px 0; border-bottom: 1px solid #e0e0e0; }
+        .sidebar .logout-btn {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            font-size: 1rem;
+        }
+        .sidebar .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
@@ -49,7 +66,11 @@
                 <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
                 <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
                 <a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
-                <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </form>
             </nav>
         </div>
 

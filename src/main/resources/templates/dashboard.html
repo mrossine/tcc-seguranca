@@ -50,6 +50,25 @@
 .carona-card {
 	border-left: 4px solid #28a745;
 }
+
+.sidebar .logout-btn {
+	color: rgba(255, 255, 255, 0.8);
+	text-decoration: none;
+	padding: 10px 15px;
+	display: block;
+	transition: all 0.3s;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	font-size: 1rem;
+}
+
+.sidebar .logout-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 10px;
+}
 </style>
 </head>
 <body>
@@ -74,7 +93,11 @@
 					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
 					<i class="bi bi-shield-lock"></i> Admin
 					</a>
-					<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+					<form th:action="@{/logout}" method="post">
+						<button type="submit" class="logout-btn">
+							<i class="bi bi-box-arrow-right"></i> Sair
+						</button>
+					</form>
 				</nav>
 			</div>
 

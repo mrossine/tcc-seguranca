@@ -49,6 +49,23 @@
 			color: white;
 			border-color: #667eea;
 		}
+		.sidebar .logout-btn {
+			color: rgba(255, 255, 255, 0.8);
+			text-decoration: none;
+			padding: 10px 15px;
+			display: block;
+			transition: all 0.3s;
+			width: 100%;
+			text-align: left;
+			background: none;
+			border: none;
+			font-size: 1rem;
+		}
+		.sidebar .logout-btn:hover {
+			background: rgba(255, 255, 255, 0.2);
+			color: white;
+			border-radius: 10px;
+		}
 	</style>
 </head>
 <body>
@@ -74,7 +91,11 @@
 				<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
 					<i class="bi bi-shield-lock"></i> Admin
 				</a>
-				<a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+				<form th:action="@{/logout}" method="post">
+					<button type="submit" class="logout-btn">
+						<i class="bi bi-box-arrow-right"></i> Sair
+					</button>
+				</form>
 			</nav>
 		</div>
 
@@ -138,22 +159,13 @@
 								</div>
 								<div class="mb-3">
 									<label class="form-label">Curso</label>
-									<select class="form-select" name="curso" required>
-										<option th:selected="${usuario.curso == 'Análise e Desenvolvimento de Sistemas'}" value="Análise e Desenvolvimento de Sistemas">Análise e Desenvolvimento de Sistemas</option>
-										<option th:selected="${usuario.curso == 'Gestão da Tecnologia da Informação'}" value="Gestão da Tecnologia da Informação">Gestão da Tecnologia da Informação</option>
-										<option th:selected="${usuario.curso == 'Sistemas para Internet'}" value="Sistemas para Internet">Sistemas para Internet</option>
-										<option th:selected="${usuario.curso == 'Banco de Dados'}" value="Banco de Dados">Banco de Dados</option>
-										<option th:selected="${usuario.curso == 'Jogos Digitais'}" value="Jogos Digitais">Jogos Digitais</option>
-										<option th:selected="${usuario.curso == 'Outro'}" value="Outro">Outro</option>
-									</select>
+									<input type="text" class="form-control" th:value="${usuario.curso}" disabled>
+									<div class="form-text text-muted">O curso é vinculado à sua matrícula e não pode ser alterado.</div>
 								</div>
 								<div class="mb-3">
 									<label class="form-label">Período</label>
-									<select class="form-select" name="periodo" required>
-										<option th:selected="${usuario.periodo == 'MANHA'}" value="MANHA">Manhã</option>
-										<option th:selected="${usuario.periodo == 'TARDE'}" value="TARDE">Tarde</option>
-										<option th:selected="${usuario.periodo == 'NOITE'}" value="NOITE">Noite</option>
-									</select>
+									<input type="text" class="form-control" th:value="${usuario.periodo}" disabled>
+									<div class="form-text text-muted">O período é vinculado à sua matrícula e não pode ser alterado.</div>
 								</div>
 								<button type="submit" class="btn btn-primary">Salvar Alterações</button>
 							</form>

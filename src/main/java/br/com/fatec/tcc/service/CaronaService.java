@@ -10,9 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import br.com.fatec.tcc.dto.CaronaRequestDTO;
 import br.com.fatec.tcc.dto.CaronaResponseDTO;
 import br.com.fatec.tcc.dto.ParticipacaoCaronaDTO;
+import br.com.fatec.tcc.model.AvaliacaoCarona;
 import br.com.fatec.tcc.model.Carona;
 import br.com.fatec.tcc.model.ParticipacaoCarona;
 import br.com.fatec.tcc.model.Usuario;
+import br.com.fatec.tcc.repository.AvaliacaoCaronaRepository;
 import br.com.fatec.tcc.repository.CaronaRepository;
 import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class CaronaService {
 
     private final CaronaRepository caronaRepository;
     private final ParticipacaoCaronaRepository participacaoRepository;
+    private final AvaliacaoCaronaRepository avaliacaoRepository;
     private final UsuarioService usuarioService;
 
     @Transactional
@@ -33,6 +36,17 @@ public class CaronaService {
         }
 
         Usuario motorista = usuarioService.findUserByUsername(email);
+
+        // Verifica bloqueio: mais de 10 caronas criadas E média < 3 estrelas
+        long totalCaronasCriadas = caronaRepository.countByMotorista(motorista);
+        if (totalCaronasCriadas > 10) {
+            Double media = avaliacaoRepository.calcularMediaMotorista(motorista);
+            if (media != null && media < 3.0) {
+                throw new RuntimeException(
+                    "Você não pode criar novas caronas pois sua média de avaliação (%.1f ★) está abaixo de 3,0."
+                    .formatted(media));
+            }
+        }
 
         Carona carona = new Carona();
         carona.setMotorista(motorista);
@@ -52,6 +66,7 @@ public class CaronaService {
     public List<CaronaResponseDTO> listarCaronasDisponiveis(String email, String origem, String destino,
                                                             LocalDateTime horarioInicio,
                                                             LocalDateTime horarioFim) {
+        Usuario usuarioLogado = usuarioService.findUserByUsername(email);
         List<Carona> abertas = caronaRepository
                 .buscarCaronasDisponiveis(LocalDateTime.now(), origem, destino, horarioInicio, horarioFim);
         List<Carona> privadas = caronaRepository.buscarCaronasPrivadasDoUsuario(email);
@@ -59,7 +74,7 @@ public class CaronaService {
         List<Carona> todas = new java.util.ArrayList<>(abertas);
         todas.addAll(privadas);
         return todas.stream()
-                .map(this::convertToResponseDTO)
+                .map(c -> convertToResponseDTO(c, usuarioLogado))
                 .collect(Collectors.toList());
     }
 
@@ -198,6 +213,42 @@ public class CaronaService {
         caronaRepository.save(carona);
     }
 
+    /**
+     * Passageiro avalia a carona com estrelas (1-5).
+     * Só é permitido após FINALIZADA e se ainda não avaliou.
+     */
+    @Transactional
+    public void avaliarCarona(Long caronaId, String emailPassageiro, Integer estrelas, String comentario) {
+        if (estrelas == null || estrelas < 1 || estrelas > 5) {
+            throw new RuntimeException("A avaliação deve ser entre 1 e 5 estrelas.");
+        }
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        if (carona.getStatus() != Carona.StatusCarona.FINALIZADA) {
+            throw new RuntimeException("Só é possível avaliar caronas finalizadas.");
+        }
+        Usuario passageiro = usuarioService.findUserByUsername(emailPassageiro);
+
+        // Verifica se o passageiro participou e foi confirmado
+        ParticipacaoCarona participacao = participacaoRepository
+                .findByCaronaAndPassageiro(carona, passageiro)
+                .orElseThrow(() -> new RuntimeException("Você não participou desta carona."));
+        if (participacao.getStatus() != ParticipacaoCarona.StatusParticipacao.CONFIRMADA) {
+            throw new RuntimeException("Apenas passageiros confirmados podem avaliar.");
+        }
+        if (avaliacaoRepository.existsByCaronaAndPassageiro(carona, passageiro)) {
+            throw new RuntimeException("Você já avaliou esta carona.");
+        }
+
+        AvaliacaoCarona avaliacao = new AvaliacaoCarona();
+        avaliacao.setCarona(carona);
+        avaliacao.setPassageiro(passageiro);
+        avaliacao.setMotorista(carona.getMotorista());
+        avaliacao.setEstrelas(estrelas);
+        avaliacao.setComentario(comentario);
+        avaliacaoRepository.save(avaliacao);
+    }
+
     public List<ParticipacaoCaronaDTO> listarSolicitacoesPorCarona(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -227,12 +278,40 @@ public class CaronaService {
     }
 
     private CaronaResponseDTO convertToResponseDTO(Carona carona) {
+        return convertToResponseDTO(carona, null);
+    }
+
+    private CaronaResponseDTO convertToResponseDTO(Carona carona, Usuario usuarioLogado) {
         long vagasOcupadas = participacaoRepository.countByCaronaAndStatus(carona,
                 ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
+
+        Usuario motorista = carona.getMotorista();
+        long totalCaronasCriadas = caronaRepository.countByMotorista(motorista);
+
+        // Média só é exibida após mais de 10 caronas criadas
+        Double media = null;
+        long totalAvaliacoes = avaliacaoRepository.countByMotorista(motorista);
+        if (totalCaronasCriadas > 10) {
+            media = avaliacaoRepository.calcularMediaMotorista(motorista);
+        }
+
+        // Pode avaliar: carona finalizada + passageiro confirmado + ainda não avaliou
+        boolean podeAvaliar = false;
+        if (usuarioLogado != null
+                && carona.getStatus() == Carona.StatusCarona.FINALIZADA
+                && !motorista.getId().equals(usuarioLogado.getId())) {
+            var optP = participacaoRepository.findByCaronaAndPassageiro(carona, usuarioLogado);
+            if (optP.isPresent()
+                    && optP.get().getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA
+                    && !avaliacaoRepository.existsByCaronaAndPassageiro(carona, usuarioLogado)) {
+                podeAvaliar = true;
+            }
+        }
+
         return new CaronaResponseDTO(
                 carona.getId(),
-                carona.getMotorista().getNomeCompleto(),
-                carona.getMotorista().getEmail(),
+                motorista.getNomeCompleto(),
+                motorista.getEmail(),
                 carona.getOrigem(),
                 carona.getDestino(),
                 carona.getHorarioSaida(),
@@ -241,7 +320,10 @@ public class CaronaService {
                 carona.getVeiculoModelo(),
                 carona.getVeiculoPlaca(),
                 carona.getObservacoes(),
-                carona.getStatus()
+                carona.getStatus(),
+                media != null ? Math.round(media * 10.0) / 10.0 : null,
+                totalAvaliacoes,
+                podeAvaliar
         );
     }
 

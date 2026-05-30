@@ -15,6 +15,9 @@ public interface CaronaRepository extends JpaRepository<Carona, Long> {
 
 	List<Carona> findByMotoristaOrderByDataCriacaoDesc(Usuario motorista);
 
+	/** Conta total de caronas criadas pelo motorista (para verificar período de avaliação) */
+	long countByMotorista(Usuario motorista);
+
 	List<Carona> findByStatusAndHorarioSaidaAfter(Carona.StatusCarona status, LocalDateTime horario);
 
 	@Query("SELECT c FROM Carona c WHERE c.status = 'ABERTA' AND " +
@@ -27,9 +30,10 @@ public interface CaronaRepository extends JpaRepository<Carona, Long> {
 			@Param("destino") String destino, @Param("horarioInicio") LocalDateTime horarioInicio,
 			@Param("horarioFim") LocalDateTime horarioFim);
 
-	// Caronas CHEIA/FECHADA visíveis apenas para motorista ou passageiros confirmados
+	// Caronas privadas: CHEIA, FECHADA, FINALIZADA e CANCELADA
+	// Visíveis apenas para o motorista ou passageiros confirmados
 	@Query("SELECT DISTINCT c FROM Carona c LEFT JOIN c.participacoes p " +
-			"WHERE c.status IN ('CHEIA', 'FECHADA') AND " +
+			"WHERE c.status IN ('CHEIA', 'FECHADA', 'FINALIZADA', 'CANCELADA') AND " +
 			"(c.motorista.email = :email OR " +
 			" (p.passageiro.email = :email AND p.status = 'CONFIRMADA'))")
 	List<Carona> buscarCaronasPrivadasDoUsuario(@Param("email") String email);

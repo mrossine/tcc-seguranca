@@ -8,11 +8,10 @@
 <!-- FIX 3/4: Meta tag para o CSRF token - necessário para POST via fetch -->
 <meta name="_csrf" th:content="${_csrf.token}"/>
 <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-<link
-	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-	rel="stylesheet">
-<link rel="stylesheet"
-	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<!-- Leaflet.js — CSS deve ficar no <head> para o mapa renderizar corretamente -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
 <style>
 .sidebar {
 	min-height: 100vh;
@@ -195,7 +194,27 @@
 		</div>
 	</div>
 
+	<!-- Modal Ver Mapa -->
+	<div class="modal fade" id="modalMapa" tabindex="-1">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title"><i class="bi bi-map"></i> <span id="modalMapaTitulo"></span></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body p-0">
+					<div id="mapaContainer" style="height: 420px; width: 100%;"></div>
+				</div>
+				<div class="modal-footer">
+					<small class="text-muted me-auto"><i class="bi bi-info-circle"></i> Mapa via OpenStreetMap</small>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 	<script>
         let alertas = [];
 
@@ -313,6 +332,13 @@
                                     <i class="bi bi-flag"></i> Denunciar
                                     <span class="badge bg-danger ms-1">${alerta.denuncias || 0}</span>
                                 </button>
+                                ${(alerta.latitude && alerta.longitude) ? `
+                                <button
+                                    onclick="verMapa(${alerta.latitude}, ${alerta.longitude}, '${alerta.titulo.replace(/'/g, "\\'")}')"
+                                    class="btn btn-outline-primary btn-sm flex-grow-1"
+                                    title="Ver localização no mapa">
+                                    <i class="bi bi-map"></i> Ver Mapa
+                                </button>` : ''}
                                 <!-- FIX 4: Excluir apenas para quem tem permissão (podeExcluir vem do backend) -->
                                 ${alerta.podeExcluir ? `
                                 <button
@@ -412,6 +438,55 @@
             bsToast.show();
             el.addEventListener('hidden.bs.toast', () => el.remove());
         }
+
+        // ── Ver Mapa ──────────────────────────────────────────────────
+        let mapaInstance = null;
+        let mapaLat = null, mapaLng = null, mapaTitulo = null;
+
+        function verMapa(lat, lng, titulo) {
+            mapaLat = lat; mapaLng = lng; mapaTitulo = titulo;
+            document.getElementById('modalMapaTitulo').textContent = titulo;
+
+            // Destrói instância anterior antes de abrir
+            if (mapaInstance) { mapaInstance.remove(); mapaInstance = null; }
+
+            const modal = new bootstrap.Modal(document.getElementById('modalMapa'));
+            modal.show();
+        }
+
+        // Inicializa o mapa APÓS o modal estar 100% visível (animação concluída)
+        document.getElementById('modalMapa').addEventListener('shown.bs.modal', function () {
+            if (mapaInstance) { mapaInstance.remove(); mapaInstance = null; }
+
+            mapaInstance = L.map('mapaContainer', { zoomControl: true }).setView([mapaLat, mapaLng], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
+            }).addTo(mapaInstance);
+
+            // Pin vermelho com ícone Bootstrap Icons
+            const icone = L.divIcon({
+                html: '<i class="bi bi-geo-alt-fill" style="font-size:2.2rem;color:#dc3545;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));"></i>',
+                iconSize:   [36, 36],
+                iconAnchor: [18, 36],
+                popupAnchor:[0, -36],
+                className: ''
+            });
+
+            L.marker([mapaLat, mapaLng], { icon: icone })
+                .addTo(mapaInstance)
+                .bindPopup(`<strong>${mapaTitulo}</strong><br><small>Lat: ${mapaLat.toFixed(6)}, Lng: ${mapaLng.toFixed(6)}</small>`)
+                .openPopup();
+
+            // Força recalculo de tamanho — resolve o problema do tile branco
+            setTimeout(() => mapaInstance.invalidateSize(), 200);
+        });
+
+        // Destrói o mapa ao fechar o modal para evitar memory leak
+        document.getElementById('modalMapa').addEventListener('hidden.bs.modal', function () {
+            if (mapaInstance) { mapaInstance.remove(); mapaInstance = null; }
+        });
 
         carregarAlertas();
     </script>

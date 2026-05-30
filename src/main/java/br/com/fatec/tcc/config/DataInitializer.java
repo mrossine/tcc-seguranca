@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class DataInitializer implements CommandLineRunner {
 
 	private final UsuarioRepository usuarioRepository;
-	private final PasswordEncoder passwordEncoder; // Agora usa PasswordEncoder da interface
+	private final PasswordEncoder passwordEncoder;
 
 	@Override
 	public void run(String... args) throws Exception {
@@ -23,7 +23,7 @@ public class DataInitializer implements CommandLineRunner {
 			admin.setEmail("admin@fatec.sp.gov.br");
 			admin.setSenha(passwordEncoder.encode("admin123"));
 			admin.setMatricula("ADMIN001");
-			admin.setCurso("Administração");
+			admin.setCurso("Admininistrador");
 			admin.setPeriodo(Usuario.Periodo.MANHA);
 			admin.setRole(Usuario.Role.ADMIN);
 			admin.setAtivo(true);
@@ -38,7 +38,7 @@ public class DataInitializer implements CommandLineRunner {
 			moderador.setEmail("moderador@fatec.sp.gov.br");
 			moderador.setSenha(passwordEncoder.encode("moderador123"));
 			moderador.setMatricula("MOD001");
-			moderador.setCurso("Sistemas para Internet");
+			moderador.setCurso("Moderador");
 			moderador.setPeriodo(Usuario.Periodo.TARDE);
 			moderador.setRole(Usuario.Role.MODERATOR);
 			moderador.setAtivo(true);

@@ -15,5 +15,14 @@ public record CaronaResponseDTO(
     String veiculoModelo,
     String veiculoPlaca,
     String observacoes,
-    Carona.StatusCarona status
+    Carona.StatusCarona status,
+
+    /** Média de avaliações do motorista. Null = ainda em período de avaliação (< 10 caronas). */
+    Double mediaAvaliacaoMotorista,
+
+    /** Total de avaliações que o motorista recebeu. */
+    Long totalAvaliacoesMotorista,
+
+    /** Indica se o passageiro logado pode avaliar esta carona (FINALIZADA e ainda não avaliou). */
+    Boolean podeAvaliar
 ) {}

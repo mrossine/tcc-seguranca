@@ -43,7 +43,7 @@ public class Carona {
     
     @Column(length = 500)
     private String observacoes;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "varchar(20)")
     private StatusCarona status = StatusCarona.ABERTA;

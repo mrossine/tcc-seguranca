@@ -53,6 +53,14 @@
             color: white;
             border-radius: 10px;
         }
+        /* Estrelas de avaliação */
+        .star-rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 4px; }
+        .star-rating input { display: none; }
+        .star-rating label { font-size: 2rem; color: #ccc; cursor: pointer; transition: color 0.2s; }
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label { color: #ffc107; }
+        .stars-display { color: #ffc107; letter-spacing: 2px; }
     </style>
 </head>
 <body>
@@ -120,6 +128,36 @@
     </div>
 </div>
  
+<!-- Modal Avaliação de Carona -->
+<div class="modal fade" id="modalAvaliar" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-star-fill text-warning"></i> Avaliar Carona</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="text-muted small mb-3">Como foi a experiência com o motorista?</p>
+                <div class="star-rating justify-content-center mb-3" id="starContainer">
+                    <input type="radio" id="s5" name="estrelas" value="5"><label for="s5">★</label>
+                    <input type="radio" id="s4" name="estrelas" value="4"><label for="s4">★</label>
+                    <input type="radio" id="s3" name="estrelas" value="3"><label for="s3">★</label>
+                    <input type="radio" id="s2" name="estrelas" value="2"><label for="s2">★</label>
+                    <input type="radio" id="s1" name="estrelas" value="1"><label for="s1">★</label>
+                </div>
+                <textarea id="comentarioAvaliacao" class="form-control form-control-sm" rows="2"
+                          placeholder="Comentário opcional..." maxlength="500"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning btn-sm" onclick="enviarAvaliacao()">
+                    <i class="bi bi-send"></i> Enviar Avaliação
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal para confirmar/recusar solicitações -->
 <div class="modal fade" id="modalSolicitacoes" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -180,6 +218,25 @@
         const souMotorista = carona.motoristaEmail === emailUsuario;
         const vagasLivres = (carona.vagasDisponiveis || 0) - (carona.vagasOcupadas || 0);
         const podeExcluir = souMotorista || isAdminOuModerador;
+
+        // Avaliação do motorista
+        const avaliacaoHtml = (() => {
+            if (carona.mediaAvaliacaoMotorista !== null && carona.mediaAvaliacaoMotorista !== undefined) {
+                const media = carona.mediaAvaliacaoMotorista.toFixed(1);
+                const estrelasCheia = Math.floor(carona.mediaAvaliacaoMotorista);
+                const temMeia = (carona.mediaAvaliacaoMotorista - estrelasCheia) >= 0.5;
+                let html = '';
+                for (let i = 1; i <= 5; i++) {
+                    if (i <= estrelasCheia) html += '<i class="bi bi-star-fill text-warning" style="font-size:0.8rem"></i>';
+                    else if (i === estrelasCheia + 1 && temMeia) html += '<i class="bi bi-star-half text-warning" style="font-size:0.8rem"></i>';
+                    else html += '<i class="bi bi-star text-warning" style="font-size:0.8rem"></i>';
+                }
+                return `<span title="${carona.totalAvaliacoesMotorista} avaliações">${html} <small class="text-muted">${media}</small></span>`;
+            } else if (!souMotorista) {
+                return `<small class="text-muted fst-italic">Em período de avaliação</small>`;
+            }
+            return '';
+        })();
  
         const badgeStatus = {
             'CANCELADA':  `<span class="badge-cancelada"><i class="bi bi-x-circle"></i> Cancelada</span>`,
@@ -215,6 +272,12 @@
             ? `<button onclick="excluirCarona(${carona.id})" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> Excluir</button>`
             : '';
  
+        // Botão Avaliar: passageiro confirmado, carona finalizada, ainda não avaliou
+        const btnAvaliar = (carona.podeAvaliar && !souMotorista)
+            ? `<button onclick="abrirAvaliar(${carona.id})" class="btn btn-warning btn-sm flex-grow-1">
+                   <i class="bi bi-star-fill"></i> Avaliar
+               </button>` : '';
+
         return `
             <div class="col-md-6 col-lg-4 mb-3">
                 <div class="card carona-card h-100 ${souMotorista ? 'minha-carona' : ''}">
@@ -223,6 +286,7 @@
                             <div>
                                 <div class="fw-semibold" style="font-size:14px"><i class="bi bi-person-circle"></i> ${carona.motoristaNome}</div>
                                 ${labelMinha}
+                                <div class="mt-1">${avaliacaoHtml}</div>
                             </div>
                             ${badgeStatus}
                         </div>
@@ -238,6 +302,7 @@
                             ${btnSolicitar}
                             ${btnSolicitacoes}
                             ${btnFinalizar}
+                            ${btnAvaliar}
                             ${btnExcluir}
                         </div>
                     </div>
@@ -336,6 +401,36 @@
                 })
                 .catch(err => alert('Erro: ' + err.message));
         }
+    }
+
+    // ── Avaliação ────────────────────────────────────────────────────
+    let caronaIdAvaliar = null;
+
+    function abrirAvaliar(caronaId) {
+        caronaIdAvaliar = caronaId;
+        document.querySelectorAll('#starContainer input').forEach(r => r.checked = false);
+        document.getElementById('comentarioAvaliacao').value = '';
+        new bootstrap.Modal(document.getElementById('modalAvaliar')).show();
+    }
+
+    function enviarAvaliacao() {
+        const estrelasSelecionada = document.querySelector('#starContainer input:checked');
+        if (!estrelasSelecionada) { alert('Selecione uma nota de 1 a 5 estrelas.'); return; }
+        const estrelas = parseInt(estrelasSelecionada.value);
+        const comentario = document.getElementById('comentarioAvaliacao').value.trim();
+
+        fetch(`/api/caronas/${caronaIdAvaliar}/avaliar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estrelas, comentario: comentario || null })
+        })
+        .then(res => res.json())
+        .then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('modalAvaliar')).hide();
+            alert(data.message || 'Avaliação enviada!');
+            carregarCaronas();
+        })
+        .catch(() => alert('Erro ao enviar avaliação.'));
     }
 
     function filtrar() { aplicarFiltros(); }

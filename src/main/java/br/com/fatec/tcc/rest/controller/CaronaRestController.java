@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/caronas")
@@ -83,6 +84,24 @@ public class CaronaRestController {
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * POST /api/caronas/{id}/avaliar
+     * Body: { "estrelas": 4, "comentario": "Ótima viagem!" }
+     */
+    @PostMapping("/{id}/avaliar")
+    public ResponseEntity<?> avaliarCarona(@PathVariable Long id,
+                                           @RequestBody Map<String, Object> body,
+                                           Authentication auth) {
+        try {
+            Integer estrelas = (Integer) body.get("estrelas");
+            String comentario = (String) body.getOrDefault("comentario", null);
+            caronaService.avaliarCarona(id, auth.getName(), estrelas, comentario);
+            return ResponseEntity.ok(Map.of("message", "Avaliação registrada com sucesso!"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 

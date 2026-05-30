@@ -44,6 +44,10 @@ public class Carona {
     @Column(length = 500)
     private String observacoes;
 
+    /** Coordenadas do destino usadas pelo geofencing (raio de 50 m). */
+    private Double destinoLatitude;
+    private Double destinoLongitude;
+
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "varchar(20)")
     private StatusCarona status = StatusCarona.ABERTA;
@@ -57,8 +61,9 @@ public class Carona {
     public enum StatusCarona {
         ABERTA,     // tem vagas em aberto — visível para todos
         CHEIA,      // todas as vagas preenchidas — visível só para motorista e passageiros confirmados
-        FECHADA,    // horário de saída passou — visível só para motorista e passageiros confirmados
-        FINALIZADA, // motorista finalizou a viagem — não aparece para ninguém
+        FECHADA,    // horário de saída passou — rastreamento em tempo real ativo
+        COMPLETADA, // motorista chegou ao destino — aguardando 10 min para FINALIZADA
+        FINALIZADA, // carona encerrada — disponível para avaliação
         CANCELADA   // motorista cancelou antes do início
     }
 } 

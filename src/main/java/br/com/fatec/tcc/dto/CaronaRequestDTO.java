@@ -17,4 +17,8 @@ public class CaronaRequestDTO {
     private String veiculoModelo;
     private String veiculoPlaca;
     private String observacoes;
+
+    /** Coordenadas do destino para geofencing (preenchidas via JS no formulário). */
+    private Double destinoLatitude;
+    private Double destinoLongitude;
 } 

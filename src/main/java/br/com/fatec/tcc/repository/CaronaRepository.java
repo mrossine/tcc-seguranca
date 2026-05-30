@@ -30,10 +30,10 @@ public interface CaronaRepository extends JpaRepository<Carona, Long> {
 			@Param("destino") String destino, @Param("horarioInicio") LocalDateTime horarioInicio,
 			@Param("horarioFim") LocalDateTime horarioFim);
 
-	// Caronas privadas: CHEIA, FECHADA, FINALIZADA e CANCELADA
+	// Caronas privadas: CHEIA, FECHADA, COMPLETADA, FINALIZADA e CANCELADA
 	// Visíveis apenas para o motorista ou passageiros confirmados
 	@Query("SELECT DISTINCT c FROM Carona c LEFT JOIN c.participacoes p " +
-			"WHERE c.status IN ('CHEIA', 'FECHADA', 'FINALIZADA', 'CANCELADA') AND " +
+			"WHERE c.status IN ('CHEIA', 'FECHADA', 'COMPLETADA', 'FINALIZADA', 'CANCELADA') AND " +
 			"(c.motorista.email = :email OR " +
 			" (p.passageiro.email = :email AND p.status = 'CONFIRMADA'))")
 	List<Carona> buscarCaronasPrivadasDoUsuario(@Param("email") String email);

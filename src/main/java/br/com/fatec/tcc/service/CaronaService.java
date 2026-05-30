@@ -57,6 +57,8 @@ public class CaronaService {
         carona.setVeiculoModelo(request.getVeiculoModelo());
         carona.setVeiculoPlaca(request.getVeiculoPlaca());
         carona.setObservacoes(request.getObservacoes());
+        carona.setDestinoLatitude(request.getDestinoLatitude());
+        carona.setDestinoLongitude(request.getDestinoLongitude());
         carona.setStatus(Carona.StatusCarona.ABERTA);
 
         Carona saved = caronaRepository.save(carona);
@@ -159,7 +161,8 @@ public class CaronaService {
         if (!carona.getMotorista().getId().equals(motorista.getId())) {
             throw new RuntimeException("Apenas o motorista pode finalizar a carona");
         }
-        if (carona.getStatus() != Carona.StatusCarona.FECHADA) {
+        if (carona.getStatus() != Carona.StatusCarona.FECHADA
+                && carona.getStatus() != Carona.StatusCarona.COMPLETADA) {
             throw new RuntimeException("A carona só pode ser finalizada após o horário de início");
         }
         carona.setStatus(Carona.StatusCarona.FINALIZADA);

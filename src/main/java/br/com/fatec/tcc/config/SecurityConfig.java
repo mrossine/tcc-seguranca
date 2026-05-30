@@ -30,7 +30,8 @@ public class SecurityConfig {
             "/js/**",
             "/images/**",
             "/webjars/**",
-            "/actuator/health"
+            "/actuator/health",
+            "/ws/**"
     };
 
     @Bean
@@ -38,7 +39,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .ignoringRequestMatchers("/api/**")
+                        .ignoringRequestMatchers("/api/**", "/ws/**")
                 )
                 .headers(headers -> headers
                         .httpStrictTransportSecurity(hsts -> hsts
@@ -53,7 +54,8 @@ public class SecurityConfig {
                                         "img-src 'self' data: https://placehold.co " +
                                               "https://*.tile.openstreetmap.org " +
                                               "https://*.openstreetmap.org; " +
-                                        "connect-src 'self' https://*.tile.openstreetmap.org; " +
+                                        "connect-src 'self' https://*.tile.openstreetmap.org " +
+                                              "ws://localhost:8080 wss://localhost:8080; " +
                                         "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;")
                         )
                         .referrerPolicy(referrer -> referrer

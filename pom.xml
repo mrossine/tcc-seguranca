@@ -67,6 +67,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
+        <!-- DevTools: hot-reload de templates/classes em desenvolvimento.
+             Recompila e recarrega automaticamente ao salvar, evitando editar target/classes na mão.
+             É automaticamente excluído do JAR final de produção. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
 
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>

@@ -30,6 +30,8 @@ public class SecurityConfig {
             "/js/**",
             "/images/**",
             "/webjars/**",
+            "/favicon.ico",
+            "/favicon.svg",
             "/actuator/health",
             "/ws/**"
     };
@@ -55,6 +57,7 @@ public class SecurityConfig {
                                               "https://*.tile.openstreetmap.org " +
                                               "https://*.openstreetmap.org; " +
                                         "connect-src 'self' https://*.tile.openstreetmap.org " +
+                                              "https://cdn.jsdelivr.net " +
                                               "ws://localhost:8080 wss://localhost:8080; " +
                                         "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;")
                         )

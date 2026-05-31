@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ônibus em Tempo Real - Segurança Fatec ZL</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 10px;
+        }
+        .sidebar .logout-btn {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            font-size: 1rem;
+        }
+        .sidebar .logout-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 10px;
+        }
+
+        /* Mapa ocupa toda a altura disponível */
+        #mapaOnibus {
+            height: calc(100vh - 130px);
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #dee2e6;
+        }
+
+        /* Painel de busca */
+        .search-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+        /* Lista de resultados */
+        .linha-item {
+            cursor: pointer;
+            border-left: 4px solid #667eea;
+            transition: background 0.2s;
+        }
+        .linha-item:hover { background: #f0f0ff; }
+        .linha-item.ativa  { background: #e8eaff; border-left-color: #764ba2; }
+
+        /* Badge de atualização */
+        #badgeAtualizacao {
+            font-size: 0.75rem;
+        }
+
+        /* Timer countdown */
+        #countdown {
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+
+        <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+        <div class="col-md-3 col-lg-2 px-0 sidebar">
+            <div class="text-center py-4">
+                <i class="bi bi-shield-shaded display-3"></i>
+                <h4 class="mt-2">Segurança Fatec ZL</h4>
+            </div>
+            <nav class="nav flex-column px-3">
+                <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+                <a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+                <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+                <a href="/onibus" class="active"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+                <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+                <a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
+                    <i class="bi bi-shield-lock"></i> Admin
+                </a>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </form>
+            </nav>
+        </div>
+
+        <!-- ── Conteúdo principal ─────────────────────────────────────── -->
+        <div class="col-md-9 col-lg-10 px-4 py-3">
+
+            <!-- Cabeçalho -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-0"><i class="bi bi-bus-front-fill text-primary"></i> Ônibus em Tempo Real</h2>
+                    <small class="text-muted">SPTrans Olho Vivo — São Paulo</small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span id="badgeAtualizacao" class="badge bg-secondary d-none">
+                        <i class="bi bi-arrow-clockwise"></i> Próxima atualização: <span id="countdown">60</span>s
+                    </span>
+                    <span class="badge bg-success p-2">
+                        <i class="bi bi-person-circle"></i>
+                        <span sec:authentication="name"></span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Busca + Resultados + Mapa -->
+            <div class="row g-3">
+
+                <!-- Coluna lateral: busca e lista de linhas -->
+                <div class="col-md-4 col-lg-3">
+
+                    <!-- Campo de busca -->
+                    <div class="search-card p-3 mb-3">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-search"></i> Buscar Linha
+                        </label>
+                        <div class="input-group">
+                            <input type="text" id="termoBusca" class="form-control"
+                                   placeholder="Ex: 8000 ou Lapa"
+                                   onkeydown="if(event.key==='Enter') buscarLinhas()">
+                            <button class="btn btn-primary" onclick="buscarLinhas()">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                        <div id="spinnerBusca" class="text-center mt-2 d-none">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                            <small class="ms-1 text-muted">Buscando...</small>
+                        </div>
+                    </div>
+
+                    <!-- Legenda do mapa -->
+                    <div class="search-card p-3 mb-3">
+                        <p class="fw-bold mb-2"><i class="bi bi-map"></i> Legenda</p>
+                        <div class="d-flex align-items-center mb-1">
+                            <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#1a73e8;margin-right:8px;border:2px solid white;box-shadow:0 0 0 2px #1a73e8"></span>
+                            <small>Sua localização</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#fd7e14;margin-right:8px"></span>
+                            <small>Ônibus em circulação</small>
+                        </div>
+                    </div>
+
+                    <!-- Lista de linhas encontradas -->
+                    <div id="listaLinhas" class="d-none">
+                        <p class="fw-bold mb-2 px-1">
+                            <i class="bi bi-list-ul"></i> Linhas encontradas
+                            <span id="totalLinhas" class="badge bg-secondary ms-1"></span>
+                        </p>
+                        <div id="containerLinhas" style="max-height:350px;overflow-y:auto;"></div>
+                    </div>
+
+                    <div id="semResultados" class="d-none">
+                        <div class="alert alert-info py-2">
+                            <i class="bi bi-info-circle"></i> Nenhuma linha encontrada.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mapa -->
+                <div class="col-md-8 col-lg-9">
+                    <div id="mapaOnibus"></div>
+                    <div class="text-end mt-1">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Mapa: <a href="https://www.openstreetmap.org" target="_blank" class="text-muted">OpenStreetMap</a>
+                            · Dados: <a href="https://www.sptrans.com.br" target="_blank" class="text-muted">SPTrans Olho Vivo</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Inicialização do mapa
+// ─────────────────────────────────────────────────────────────────────────────
+const mapa = L.map('mapaOnibus').setView([-23.5505, -46.6333], 13); // São Paulo
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+}).addTo(mapa);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Estado da aplicação
+// ─────────────────────────────────────────────────────────────────────────────
+let linhaSelecionada   = null;  // { CodigoLinha, Letreiro, DenominacaoTPTS, ... }
+let markerUsuario      = null;
+let layerParadas       = L.layerGroup().addTo(mapa);
+let layerOnibus        = L.layerGroup().addTo(mapa);
+let polylineRota       = null;
+let intervaloAtualizacao = null;
+let timerCountdown     = null;
+let segundosRestantes  = 60;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Localização do usuário
+// ─────────────────────────────────────────────────────────────────────────────
+const iconeUsuario = L.divIcon({
+    html: '<div style="width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid white;box-shadow:0 0 0 3px #1a73e8,0 2px 8px rgba(0,0,0,0.4)"></div>',
+    iconSize:   [16, 16],
+    iconAnchor: [8, 8],
+    className:  ''
+});
+
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (markerUsuario) markerUsuario.remove();
+        markerUsuario = L.marker([lat, lng], { icon: iconeUsuario })
+            .addTo(mapa)
+            .bindPopup('<strong>Você está aqui</strong>');
+        mapa.setView([lat, lng], 14);
+    }, () => {
+        console.warn('Geolocalização não disponível.');
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: lê um campo tentando vários nomes possíveis
+// A SPTrans pode usar PascalCase, abreviado ou camelCase conforme a versão.
+// ─────────────────────────────────────────────────────────────────────────────
+function campo(obj, ...nomes) {
+    for (const n of nomes) {
+        const v = obj[n];
+        if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return null;
+}
+
+function escapar(str) {
+    return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Busca de linhas
+// ─────────────────────────────────────────────────────────────────────────────
+function buscarLinhas() {
+    const termo = document.getElementById('termoBusca').value.trim();
+    if (!termo) return;
+
+    document.getElementById('spinnerBusca').classList.remove('d-none');
+    document.getElementById('listaLinhas').classList.add('d-none');
+    document.getElementById('semResultados').classList.add('d-none');
+
+    fetch(`/api/onibus/linhas?termo=${encodeURIComponent(termo)}`)
+        .then(r => r.json())
+        .then(linhas => {
+            document.getElementById('spinnerBusca').classList.add('d-none');
+            // Log para diagnóstico — inspecione o console (F12) se precisar
+            if (linhas.length > 0) console.info('SPTrans campo exemplo:', JSON.stringify(linhas[0]));
+            if (!Array.isArray(linhas) || linhas.length === 0) {
+                document.getElementById('semResultados').classList.remove('d-none');
+                return;
+            }
+            renderizarLinhas(linhas);
+        })
+        .catch(err => {
+            document.getElementById('spinnerBusca').classList.add('d-none');
+            console.error('Erro ao buscar linhas:', err);
+            alert('Erro ao consultar a API. Verifique se o servidor está rodando.');
+        });
+}
+
+function renderizarLinhas(linhas) {
+    document.getElementById('totalLinhas').textContent = linhas.length;
+    const container = document.getElementById('containerLinhas');
+
+    container.innerHTML = linhas.map(l => {
+        // Campos da API Olho Vivo /Linha/Buscar:
+        //  cl = código da linha-sentido | lt = letreiro numérico | tl = sufixo (10, 41)
+        //  sl = sentido (1: Terminal Principal→Secundário, 2: Secundário→Principal)
+        //  tp = nome do Terminal Principal | ts = nome do Terminal Secundário
+        const codigo     = campo(l, 'cl', 'CodigoLinha', 'codigoLinha');
+        const ltNum      = campo(l, 'lt', 'Letreiro', 'letreiro');
+        const sufixo     = campo(l, 'tl', 'TipoLinha', 'tipoLinha');
+        const sentido    = campo(l, 'sl', 'Sentido', 'sentido');
+        const principal  = campo(l, 'tp', 'DenominacaoTPTS', 'denominacaoTPTS') || '';
+        const secundario = campo(l, 'ts', 'DenominacaoTSNT', 'denominacaoTSNT') || '';
+
+        // Letreiro completo no formato do site oficial: "3728-10"
+        const letreiro = sufixo ? `${ltNum}-${sufixo}` : (ltNum || (codigo ? `#${codigo}` : '?'));
+        // Destino em destaque conforme o sentido (igual ao Olho Vivo)
+        const destino  = (sentido === 2 || sentido === '2') ? principal : secundario;
+        // Subtítulo "Terminal Principal / Terminal Secundário"
+        const subtitulo = [principal, secundario].filter(Boolean).join(' / ');
+
+        return `
+            <div class="linha-item rounded p-2 mb-1"
+                 onclick="selecionarLinha(${codigo}, '${escapar(letreiro)}', '${escapar(destino)}')"
+                 id="linha-${codigo}">
+                <div class="fw-bold" style="font-size:0.95rem">
+                    <span class="badge bg-primary me-1">${letreiro}</span>
+                    <i class="bi bi-arrow-right text-success"></i> ${destino || '—'}
+                </div>
+                <div style="font-size:0.78rem;color:#777;font-style:italic">
+                    ${subtitulo}
+                </div>
+            </div>`;
+    }).join('');
+
+    document.getElementById('listaLinhas').classList.remove('d-none');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seleção de linha e carregamento do mapa
+// ─────────────────────────────────────────────────────────────────────────────
+function selecionarLinha(codigo, letreiro, destino) {
+    document.querySelectorAll('.linha-item').forEach(el => el.classList.remove('ativa'));
+    const el = document.getElementById(`linha-${codigo}`);
+    if (el) el.classList.add('ativa');
+
+    linhaSelecionada = { codigo, letreiro, destino };
+
+    layerParadas.clearLayers();
+    layerOnibus.clearLayers();
+    if (polylineRota) { polylineRota.remove(); polylineRota = null; }
+    pararIntervalo();
+
+    // Mostrar feedback de carregamento
+    document.getElementById('spinnerBusca').classList.remove('d-none');
+
+    Promise.all([
+        fetch(`/api/onibus/paradas?codigoLinha=${codigo}`).then(r => r.json()),
+        fetch(`/api/onibus/posicoes?codigoLinha=${codigo}`).then(r => r.json())
+    ]).then(([paradas, posicoes]) => {
+        document.getElementById('spinnerBusca').classList.add('d-none');
+        console.info('Paradas recebidas:', Array.isArray(paradas) ? `${paradas.length} itens, exemplo:` : paradas, Array.isArray(paradas) ? paradas[0] : '');
+        console.info('Posições recebidas:', JSON.stringify(posicoes).substring(0, 200));
+        renderizarRota(paradas);
+        renderizarOnibus(posicoes);
+        iniciarIntervaloAtualizacao();
+    }).catch(err => {
+        document.getElementById('spinnerBusca').classList.add('d-none');
+        console.error('Erro ao carregar dados da linha:', err);
+        alert('Erro ao carregar dados da linha selecionada.');
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Renderização: paradas e rota
+// ─────────────────────────────────────────────────────────────────────────────
+function renderizarRota(paradas) {
+    // A SPTrans pode retornar array direto ou { p: [...] }
+    if (paradas && !Array.isArray(paradas) && Array.isArray(paradas.p)) {
+        paradas = paradas.p;
+    }
+    if (!Array.isArray(paradas) || paradas.length === 0) {
+        console.warn('Nenhuma parada retornada — não foi possível traçar o trajeto da linha.');
+        return;
+    }
+
+    // Usa as coordenadas das paradas (na ordem da linha) para desenhar o trajeto.
+    // Não plotamos marcadores de parada — apenas a linha do percurso.
+    const coordenadas = [];
+    paradas.forEach(p => {
+        // Suporta py/px (padrão SPTrans), lat/lng e latitude/longitude
+        const lat = parseFloat(p.py ?? p.lat ?? p.latitude  ?? p.Latitude  ?? p.y);
+        const lng = parseFloat(p.px ?? p.lng ?? p.longitude ?? p.Longitude ?? p.x);
+        if (isNaN(lat) || isNaN(lng)) return;
+        coordenadas.push([lat, lng]);
+    });
+
+    if (coordenadas.length > 1) {
+        polylineRota = L.polyline(coordenadas, {
+            color: '#fd7e14',
+            weight: 4,
+            opacity: 0.85,
+            lineJoin: 'round',
+            lineCap: 'round'
+        }).addTo(mapa);
+        mapa.fitBounds(polylineRota.getBounds(), { padding: [40, 40] });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Renderização: ônibus em tempo real
+// ─────────────────────────────────────────────────────────────────────────────
+function renderizarOnibus(dados) {
+    layerOnibus.clearLayers();
+    if (!dados) return;
+
+    // Extrai lista de veículos nos dois formatos possíveis da API SPTrans:
+    //  Formato A: { "hr": "...", "vs": [ {py, px, ...} ] }
+    //  Formato B: { "hr": "...", "l": [ { "vs": [...] } ] }
+    let veiculos = [];
+    if (Array.isArray(dados.vs) && dados.vs.length > 0) {
+        veiculos = dados.vs;
+    } else if (Array.isArray(dados.l)) {
+        dados.l.forEach(linha => {
+            if (Array.isArray(linha.vs)) veiculos.push(...linha.vs);
+        });
+    }
+
+    if (veiculos.length === 0) {
+        console.info('Nenhum veículo em circulação agora para esta linha.');
+        return;
+    }
+
+    const iconeOnibus = L.divIcon({
+        html: '<div style="background:#fd7e14;color:white;border-radius:6px;padding:3px 6px;font-size:15px;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.35)"><i class="bi bi-bus-front-fill"></i></div>',
+        iconSize:   [28, 26],
+        iconAnchor: [14, 13],
+        className:  ''
+    });
+
+    const coords = [];
+    veiculos.forEach(v => {
+        const lat = parseFloat(v.py ?? v.lat ?? v.latitude);
+        const lng = parseFloat(v.px ?? v.lng ?? v.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        const horario   = v.ta  || v.hr  || '—';
+        const acessivel = v.a   ?? v.acessivel ?? false;
+
+        coords.push([lat, lng]);
+        L.marker([lat, lng], { icon: iconeOnibus })
+            .addTo(layerOnibus)
+            .bindPopup(`
+                <strong>Linha ${linhaSelecionada?.letreiro || ''}</strong><br>
+                <small><i class="bi bi-arrow-right"></i> ${linhaSelecionada?.destino || ''}</small><br>
+                <small>🕐 Atualizado: ${horario}</small>
+                ${acessivel ? '<br><small>♿ Acessível</small>' : ''}
+            `);
+    });
+
+    console.info(`Ônibus plotados: ${coords.length}`);
+
+    // Se não há paradas (polilinha), centraliza nos ônibus
+    if (coords.length > 0 && !polylineRota) {
+        mapa.fitBounds(L.latLngBounds(coords), { padding: [60, 60], maxZoom: 15 });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Atualização automática a cada 60 segundos
+// ─────────────────────────────────────────────────────────────────────────────
+function iniciarIntervaloAtualizacao() {
+    pararIntervalo();
+    segundosRestantes = 60;
+    atualizarCountdown();
+
+    document.getElementById('badgeAtualizacao').classList.remove('d-none');
+
+    timerCountdown = setInterval(() => {
+        segundosRestantes--;
+        atualizarCountdown();
+        if (segundosRestantes <= 0) segundosRestantes = 60;
+    }, 1000);
+
+    intervaloAtualizacao = setInterval(() => {
+        if (!linhaSelecionada) return;
+        fetch(`/api/onibus/posicoes?codigoLinha=${linhaSelecionada.codigo}`)
+            .then(r => r.json())
+            .then(posicoes => {
+                renderizarOnibus(posicoes);
+                segundosRestantes = 60;
+            })
+            .catch(err => console.error('Erro ao atualizar posições:', err));
+    }, 60_000);
+}
+
+function pararIntervalo() {
+    if (intervaloAtualizacao) { clearInterval(intervaloAtualizacao); intervaloAtualizacao = null; }
+    if (timerCountdown)       { clearInterval(timerCountdown);       timerCountdown = null; }
+    document.getElementById('badgeAtualizacao').classList.add('d-none');
+}
+
+function atualizarCountdown() {
+    document.getElementById('countdown').textContent = segundosRestantes;
+}
+</script>
+</body>
+</html>

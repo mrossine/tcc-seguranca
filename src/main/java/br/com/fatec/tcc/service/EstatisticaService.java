@@ -17,6 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Serviço responsável por gerar os dados do RELATÓRIO/ESTATÍSTICAS do sistema.
+ *
+ * Reúne contagens e agrupamentos vindos de várias tabelas (usuários, alertas e
+ * caronas) e devolve tudo pronto para a tela de Estatísticas montar os gráficos.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,6 +32,14 @@ public class EstatisticaService {
     private final CaronaRepository caronaRepository;
     private final UsuarioRepository usuarioRepository;
 
+    /**
+     * Monta o relatório principal de estatísticas.
+     *
+     * Coleta: total de usuários, total de alertas ativos, total de caronas
+     * disponíveis, e dois agrupamentos (alertas por tipo e alertas por hora do dia).
+     * Em caso de qualquer falha, registra o erro e devolve um relatório zerado
+     * para não quebrar a tela.
+     */
     public EstatisticasDTO getEstatisticas() {
         try {
             // Total de usuários
@@ -85,6 +99,10 @@ public class EstatisticaService {
         }
     }
 
+    /**
+     * Conta quantos usuários existem em cada período de estudo (manhã, tarde, noite...).
+     * Usa um agrupamento (GROUP BY período) e devolve um mapa "período -> quantidade".
+     */
     public Map<String, Long> contarUsuariosPorPeriodo() {
         List<Object[]> results = usuarioRepository.countByPeriodo();
         return results.stream()

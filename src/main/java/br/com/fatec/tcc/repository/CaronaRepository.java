@@ -10,16 +10,27 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Repositório (acesso ao banco) das caronas.
+ *
+ * Herdando de JpaRepository, já ganha de graça os métodos CRUD básicos
+ * (save = INSERT/UPDATE, delete = DELETE, findById/findAll = SELECT).
+ * Abaixo ficam as CONSULTAS específicas: por nome de método (o Spring gera o SQL)
+ * ou com @Query (JPQL escrito à mão).
+ */
 @Repository
 public interface CaronaRepository extends JpaRepository<Carona, Long> {
 
+	/** Caronas oferecidas por um motorista, da mais recente para a mais antiga. */
 	List<Carona> findByMotoristaOrderByDataCriacaoDesc(Usuario motorista);
 
 	/** Conta total de caronas criadas pelo motorista (para verificar período de avaliação) */
 	long countByMotorista(Usuario motorista);
 
+	/** Caronas em um status cujo horário de saída ainda é futuro (ex.: disponíveis). */
 	List<Carona> findByStatusAndHorarioSaidaAfter(Carona.StatusCarona status, LocalDateTime horario);
 
+	/** Caronas ABERTAS e futuras, aplicando filtros opcionais de origem/destino/horário. */
 	@Query("SELECT c FROM Carona c WHERE c.status = 'ABERTA' AND " +
 			"c.horarioSaida > :now AND " +
 			"(:origem IS NULL OR c.origem LIKE %:origem%) AND " +

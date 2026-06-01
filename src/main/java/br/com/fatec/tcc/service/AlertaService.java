@@ -13,6 +13,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Regras de negócio dos ALERTAS de segurança.
+ *
+ * Cuida de criar, listar, confirmar, denunciar e remover alertas, além de
+ * preencher informações derivadas (ex.: se o alerta é do usuário logado e se
+ * ele pode excluí-lo).
+ */
 @Service
 @RequiredArgsConstructor
 public class AlertaService {
@@ -20,6 +27,10 @@ public class AlertaService {
     private final AlertaRepository alertaRepository;
     private final UsuarioService usuarioService;
 
+    /**
+     * Cria um novo alerta (INSERÇÃO no banco).
+     * Associa o alerta ao usuário logado, marca como ATIVO e grava.
+     */
     @Transactional
     public AlertaResponseDTO criarAlerta(AlertaRequestDTO request, String email) {
         Usuario usuario = usuarioService.findUserByUsername(email);
@@ -53,6 +64,10 @@ public class AlertaService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Confirma um alerta como verdadeiro (ALTERAÇÃO).
+     * Incrementa o contador de confirmações e salva.
+     */
     @Transactional
     public void confirmarAlerta(Long id) {
         Alerta alerta = alertaRepository.findById(id)
@@ -61,6 +76,11 @@ public class AlertaService {
         alertaRepository.save(alerta);
     }
 
+    /**
+     * Denuncia um alerta como falso/inadequado (ALTERAÇÃO).
+     * Incrementa o contador de denúncias e, ao atingir 5, marca como DENUNCIADO
+     * (o alerta deixa de aparecer na listagem pública).
+     */
     @Transactional
     public void denunciarAlerta(Long id) {
         Alerta alerta = alertaRepository.findById(id)
@@ -72,12 +92,16 @@ public class AlertaService {
         alertaRepository.save(alerta);
     }
 
+    /**
+     * Remove um alerta (EXCLUSÃO).
+     * Só o autor do alerta, um moderador ou um admin têm permissão.
+     */
     @Transactional
     public void removerAlerta(Long id, String email) {
         Alerta alerta = alertaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
         Usuario usuario = usuarioService.findUserByUsername(email);
-        
+
         // Permissão: autor do alerta, moderador ou admin
         if (!alerta.getUsuario().getId().equals(usuario.getId()) &&
             usuario.getRole() != Usuario.Role.MODERATOR &&
@@ -87,6 +111,7 @@ public class AlertaService {
         alertaRepository.delete(alerta);
     }
 
+    /** Lista (CONSULTA) todos os alertas criados por um usuário específico. */
     public List<AlertaResponseDTO> listarAlertasPorUsuario(Usuario usuario) {
         return alertaRepository.findByUsuarioOrderByDataCriacaoDesc(usuario)
                 .stream()
@@ -94,6 +119,12 @@ public class AlertaService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Converte a entidade Alerta no DTO enviado ao frontend, calculando dois campos
+     * derivados a partir do usuário logado:
+     *  - meuAlerta : se o alerta foi criado por ele (usado nos filtros "meus alertas");
+     *  - podeExcluir : se ele tem permissão para excluir (autor, moderador ou admin).
+     */
     private AlertaResponseDTO convertToResponseDTO(Alerta alerta, Usuario usuarioLogado) {
         boolean podeExcluir = false;
         boolean meuAlerta = false;

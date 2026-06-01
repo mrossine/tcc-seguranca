@@ -9,6 +9,12 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repositório (acesso ao banco) dos usuários.
+ *
+ * Além do CRUD herdado do JpaRepository, o JpaSpecificationExecutor permite
+ * montar consultas dinâmicas (usadas na busca com filtros do admin).
+ */
 @Repository
 public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpecificationExecutor<Usuario> {
 

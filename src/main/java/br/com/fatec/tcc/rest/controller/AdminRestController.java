@@ -18,6 +18,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * API REST administrativa. Todos os métodos exigem o papel ADMIN
+ * (graças ao @PreAuthorize na classe). Fornece dados para as telas de admin:
+ * usuários, total via stored procedure e denúncias das caronas.
+ */
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor

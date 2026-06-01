@@ -23,6 +23,13 @@ import br.com.fatec.tcc.repository.DenunciaCaronaRepository;
 import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Regras de negócio das CARONAS solidárias.
+ *
+ * Concentra todo o ciclo de vida da carona: oferta, solicitação/aceite de vagas,
+ * finalização, cancelamento/exclusão, avaliação por estrelas e denúncias.
+ * Também converte as entidades nos DTOs usados pelas telas.
+ */
 @Service
 @RequiredArgsConstructor
 public class CaronaService {
@@ -33,6 +40,11 @@ public class CaronaService {
     private final DenunciaCaronaRepository denunciaRepository;
     private final UsuarioService usuarioService;
 
+    /**
+     * Cria/oferece uma nova carona (INSERÇÃO).
+     * Valida a antecedência mínima de 30 min e bloqueia motoristas com mais de
+     * 10 caronas e média de avaliação abaixo de 3,0 estrelas.
+     */
     @Transactional
     public CaronaResponseDTO oferecerCarona(CaronaRequestDTO request, String email) {
         if (request.getHorarioSaida() == null ||
@@ -70,6 +82,10 @@ public class CaronaService {
         return convertToResponseDTO(saved);
     }
 
+    /**
+     * Lista (CONSULTA) as caronas que o usuário pode ver: as abertas (com filtros
+     * opcionais de origem/destino/horário) somadas às caronas privadas das quais ele participa.
+     */
     public List<CaronaResponseDTO> listarCaronasDisponiveis(String email, String origem, String destino,
                                                             LocalDateTime horarioInicio,
                                                             LocalDateTime horarioFim) {
@@ -85,6 +101,10 @@ public class CaronaService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Passageiro solicita uma vaga (INSERÇÃO de participação).
+     * Valida que a carona está ABERTA, que o usuário ainda não solicitou e que há vaga.
+     */
     @Transactional
     public void solicitarVaga(Long caronaId, String email) {
         Usuario passageiro = usuarioService.findUserByUsername(email);
@@ -110,6 +130,10 @@ public class CaronaService {
         participacaoRepository.save(participacao);
     }
 
+    /**
+     * Motorista aceita um passageiro (ALTERAÇÃO de status para CONFIRMADA).
+     * Confere a permissão e as vagas; se lotar, muda a carona para CHEIA.
+     */
     @Transactional
     public void aceitarPassageiro(Long caronaId, Long participacaoId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
@@ -141,6 +165,7 @@ public class CaronaService {
         }
     }
 
+    /** Motorista recusa um passageiro (ALTERAÇÃO de status para RECUSADA). */
     @Transactional
     public void recusarPassageiro(Long caronaId, Long participacaoId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
@@ -158,6 +183,11 @@ public class CaronaService {
         participacaoRepository.save(participacao);
     }
 
+    /**
+     * Motorista finaliza a viagem (ALTERAÇÃO de status para FINALIZADA).
+     * Só é permitido após o início (estado FECHADA ou COMPLETADA). A partir daí,
+     * passageiros podem avaliar e ambos podem denunciar.
+     */
     @Transactional
     public void finalizarCarona(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
@@ -174,6 +204,10 @@ public class CaronaService {
         caronaRepository.save(carona);
     }
 
+    /**
+     * Motorista cancela a carona (ALTERAÇÃO de status para CANCELADA).
+     * Também cancela as solicitações que ainda estavam pendentes.
+     */
     @Transactional
     public void cancelarCarona(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
@@ -191,6 +225,12 @@ public class CaronaService {
         caronaRepository.save(carona);
     }
 
+    /**
+     * Exclui/cancela uma carona (EXCLUSÃO ou ALTERAÇÃO conforme o caso).
+     * - Admin/Moderador (não-motorista): exclui de fato do banco.
+     * - Motorista: a carona é apenas marcada como CANCELADA (preserva o histórico)
+     *   e só é permitido se ela ainda não foi iniciada.
+     */
     @Transactional
     public void excluirCarona(Long caronaId, String emailUsuario) {
         Carona carona = caronaRepository.findById(caronaId)
@@ -455,6 +495,7 @@ public class CaronaService {
         );
     }
 
+    /** Lista (CONSULTA) as solicitações ainda pendentes de uma carona — visível só ao motorista. */
     public List<ParticipacaoCaronaDTO> listarSolicitacoesPorCarona(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -468,12 +509,14 @@ public class CaronaService {
                 .collect(Collectors.toList());
     }
 
+    /** Busca (CONSULTA) uma carona pelo id e devolve o DTO de resposta. */
     public CaronaResponseDTO buscarPorId(Long id) {
         Carona carona = caronaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
         return convertToResponseDTO(carona);
     }
 
+    /** Lista (CONSULTA) as caronas ligadas ao usuário: as que ele ofereceu e as que solicitou. */
     public List<CaronaResponseDTO> listarCaronasPorUsuario(Usuario usuario) {
         List<CaronaResponseDTO> oferecidas = caronaRepository.findByMotoristaOrderByDataCriacaoDesc(usuario)
                 .stream().map(this::convertToResponseDTO).collect(Collectors.toList());
@@ -483,10 +526,17 @@ public class CaronaService {
         return oferecidas;
     }
 
+    /** Conversão simples (sem usuário logado): não calcula permissões de avaliar/denunciar. */
     private CaronaResponseDTO convertToResponseDTO(Carona carona) {
         return convertToResponseDTO(carona, null);
     }
 
+    /**
+     * Converte a entidade Carona no DTO da tela, calculando campos derivados:
+     *  - vagas ocupadas e média de avaliação do motorista (exibida após 10+ caronas);
+     *  - podeAvaliar : passageiro confirmado, carona FINALIZADA e ainda não avaliou;
+     *  - podeDenunciar : após FINALIZADA, motorista (com passageiros) ou passageiro confirmado.
+     */
     private CaronaResponseDTO convertToResponseDTO(Carona carona, Usuario usuarioLogado) {
         long vagasOcupadas = participacaoRepository.countByCaronaAndStatus(carona,
                 ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
@@ -544,6 +594,7 @@ public class CaronaService {
         );
     }
 
+    /** Converte uma participação (passageiro + status) no DTO usado nas listas. */
     private ParticipacaoCaronaDTO convertToDTO(ParticipacaoCarona p) {
         return new ParticipacaoCaronaDTO(
                 p.getId(),

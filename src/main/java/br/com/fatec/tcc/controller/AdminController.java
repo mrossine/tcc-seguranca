@@ -15,4 +15,9 @@ public class AdminController {
     public String usuarios() {
         return "admin/usuarios";
     }
+
+    @GetMapping("/denuncias")
+    public String denuncias() {
+        return "admin/denuncias";
+    }
 }

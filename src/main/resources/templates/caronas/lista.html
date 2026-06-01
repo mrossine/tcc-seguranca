@@ -113,6 +113,16 @@
                         <div class="col-md-3"><label class="form-label">Data Início</label><input type="datetime-local" class="form-control" id="filtroDataInicio"></div>
                         <div class="col-md-3"><label class="form-label">Data Fim</label><input type="datetime-local" class="form-control" id="filtroDataFim"></div>
                         <div class="col-12">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filtroApenasMinhas" onchange="onToggleMinhas('apenas')">
+                                <label class="form-check-label" for="filtroApenasMinhas"><i class="bi bi-person-check"></i> Apenas as minhas caronas</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filtroOcultarMinhas" onchange="onToggleMinhas('ocultar')">
+                                <label class="form-check-label" for="filtroOcultarMinhas"><i class="bi bi-person-dash"></i> Ocultar as minhas caronas</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
                             <button class="btn btn-primary" onclick="filtrar()"><i class="bi bi-search"></i> Filtrar</button>
                             <button class="btn btn-secondary" onclick="limparFiltros()"><i class="bi bi-eraser"></i> Limpar</button>
                         </div>
@@ -148,6 +158,11 @@
                 </div>
                 <textarea id="comentarioAvaliacao" class="form-control form-control-sm" rows="2"
                           placeholder="Comentário opcional..." maxlength="500"></textarea>
+                <hr class="my-3">
+                <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                        onclick="denunciarDoModalAvaliar()">
+                    <i class="bi bi-flag"></i> Denunciar ocorrido nesta carona
+                </button>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
@@ -177,6 +192,45 @@
     </div>
 </div>
  
+<!-- Modal de Denúncia -->
+<div class="modal fade" id="modalDenuncia" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-flag-fill text-danger"></i> Denunciar ocorrido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="denunciaInfo" class="alert alert-light border small mb-3"></div>
+
+                <!-- Seletor de alvo: aparece apenas para o motorista -->
+                <div id="denunciaAlvoWrapper" class="mb-3 d-none">
+                    <label class="form-label">Quem você quer denunciar?</label>
+                    <select id="denunciaAlvo" class="form-select form-select-sm"></select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Categoria</label>
+                    <select id="denunciaCategoria" class="form-select form-select-sm"></select>
+                </div>
+
+                <div class="mb-1">
+                    <label class="form-label">Descrição do ocorrido</label>
+                    <textarea id="denunciaDescricao" class="form-control form-control-sm" rows="4"
+                              maxlength="1000" placeholder="Descreva o que aconteceu..."></textarea>
+                </div>
+                <small class="text-muted">Mínimo de 5 caracteres. As denúncias são analisadas pela administração.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="enviarDenuncia()">
+                    <i class="bi bi-send"></i> Enviar Denúncia
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script th:inline="javascript">
     const emailUsuario = /*[[${emailUsuario}]]*/ '';
@@ -206,7 +260,13 @@
         if (dataInicio) filtrados = filtrados.filter(c => new Date(c.horarioSaida) >= new Date(dataInicio));
         const dataFim = document.getElementById('filtroDataFim').value;
         if (dataFim) filtrados = filtrados.filter(c => new Date(c.horarioSaida) <= new Date(dataFim));
- 
+
+        // Filtros "minhas caronas" (sou o motorista)
+        const apenasMinhas = document.getElementById('filtroApenasMinhas').checked;
+        const ocultarMinhas = document.getElementById('filtroOcultarMinhas').checked;
+        if (apenasMinhas)       filtrados = filtrados.filter(c => c.motoristaEmail === emailUsuario);
+        else if (ocultarMinhas) filtrados = filtrados.filter(c => c.motoristaEmail !== emailUsuario);
+
         const container = document.getElementById('caronasContainer');
         if (filtrados.length === 0) {
             container.innerHTML = '<div class="col-12"><div class="alert alert-info text-center">Nenhuma carona disponível.</div></div>';
@@ -279,6 +339,14 @@
                    <i class="bi bi-star-fill"></i> Avaliar
                </button>` : '';
 
+        // Botão Denunciar: após FINALIZADA — passageiro confirmado (denuncia o motorista)
+        // ou motorista (denuncia passageiro específico / carona inteira)
+        const btnDenunciar = carona.podeDenunciar
+            ? `<button onclick="${souMotorista ? `abrirDenunciaMotorista(${carona.id})` : `abrirDenunciaPassageiro(${carona.id})`}"
+                       class="btn btn-outline-danger btn-sm">
+                   <i class="bi bi-flag"></i> Denunciar
+               </button>` : '';
+
         return `
             <div class="col-md-6 col-lg-4 mb-3">
                 <div class="card carona-card h-100 ${souMotorista ? 'minha-carona' : ''}">
@@ -304,6 +372,7 @@
                             ${btnSolicitacoes}
                             ${btnFinalizar}
                             ${btnAvaliar}
+                            ${btnDenunciar}
                             ${btnExcluir}
                         </div>
                     </div>
@@ -434,12 +503,117 @@
         .catch(() => alert('Erro ao enviar avaliação.'));
     }
 
+    // ── Denúncia ─────────────────────────────────────────────────────
+    const CATEGORIAS_DENUNCIA = {
+        COMPORTAMENTO_INADEQUADO: 'Comportamento inadequado',
+        DIRECAO_PERIGOSA:         'Direção perigosa',
+        ASSEDIO:                  'Assédio',
+        COBRANCA_INDEVIDA:        'Cobrança indevida',
+        ATRASO_OU_AUSENCIA:       'Atraso ou ausência',
+        VEICULO_INADEQUADO:       'Veículo inadequado / inseguro',
+        OUTRO:                    'Outro'
+    };
+
+    let denunciaCtx = { caronaId: null, tipo: null };
+
+    function preencherCategoriasDenuncia() {
+        document.getElementById('denunciaCategoria').innerHTML =
+            '<option value="">Selecione...</option>' +
+            Object.entries(CATEGORIAS_DENUNCIA)
+                  .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    }
+
+    function resetDenuncia() {
+        preencherCategoriasDenuncia();
+        document.getElementById('denunciaDescricao').value = '';
+        document.getElementById('denunciaAlvo').innerHTML = '';
+    }
+
+    // Abre o modal de denúncia a partir do modal de avaliação (fluxo passageiro)
+    function denunciarDoModalAvaliar() {
+        const m = bootstrap.Modal.getInstance(document.getElementById('modalAvaliar'));
+        if (m) m.hide();
+        abrirDenunciaPassageiro(caronaIdAvaliar);
+    }
+
+    function abrirDenunciaPassageiro(caronaId) {
+        const carona = caronas.find(c => c.id === caronaId);
+        denunciaCtx = { caronaId, tipo: 'PASSAGEIRO' };
+        resetDenuncia();
+        document.getElementById('denunciaAlvoWrapper').classList.add('d-none');
+        document.getElementById('denunciaInfo').innerHTML =
+            `<i class="bi bi-info-circle"></i> Denunciando o motorista <strong>${carona ? carona.motoristaNome : ''}</strong> desta carona.`;
+        new bootstrap.Modal(document.getElementById('modalDenuncia')).show();
+    }
+
+    function abrirDenunciaMotorista(caronaId) {
+        denunciaCtx = { caronaId, tipo: 'MOTORISTA' };
+        resetDenuncia();
+        document.getElementById('denunciaAlvoWrapper').classList.remove('d-none');
+        document.getElementById('denunciaInfo').innerHTML =
+            `<i class="bi bi-info-circle"></i> Selecione um passageiro específico ou denuncie a carona inteira (gera uma denúncia para cada passageiro).`;
+        const sel = document.getElementById('denunciaAlvo');
+        sel.innerHTML = '<option value="">Carregando passageiros...</option>';
+        fetch(`/api/caronas/${caronaId}/passageiros-confirmados`)
+            .then(r => r.json())
+            .then(lista => {
+                let opts = '<option value="__TODA__">Toda a carona (todos os passageiros)</option>';
+                opts += (lista || [])
+                    .map(p => `<option value="${p.passageiroEmail}">${p.passageiroNome}</option>`).join('');
+                sel.innerHTML = opts;
+            })
+            .catch(() => {
+                sel.innerHTML = '<option value="__TODA__">Toda a carona (todos os passageiros)</option>';
+            });
+        new bootstrap.Modal(document.getElementById('modalDenuncia')).show();
+    }
+
+    function enviarDenuncia() {
+        const categoria = document.getElementById('denunciaCategoria').value;
+        const descricao = document.getElementById('denunciaDescricao').value.trim();
+        if (!categoria) { alert('Selecione a categoria da denúncia.'); return; }
+        if (descricao.length < 5) { alert('Descreva o ocorrido com pelo menos 5 caracteres.'); return; }
+
+        const body = { categoria, descricao };
+        if (denunciaCtx.tipo === 'MOTORISTA') {
+            const alvo = document.getElementById('denunciaAlvo').value;
+            if (!alvo) { alert('Selecione quem deseja denunciar.'); return; }
+            if (alvo === '__TODA__') body.todaCarona = true;
+            else body.alvoEmail = alvo;
+        }
+
+        fetch(`/api/caronas/${denunciaCtx.caronaId}/denunciar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) throw new Error(data.message || 'Erro ao enviar denúncia.');
+            bootstrap.Modal.getInstance(document.getElementById('modalDenuncia')).hide();
+            alert(data.message || 'Denúncia registrada!');
+            carregarCaronas();
+        })
+        .catch(err => alert('Erro: ' + err.message));
+    }
+
+    // Mantém os dois checkboxes mutuamente exclusivos e reaplica os filtros
+    function onToggleMinhas(qual) {
+        const apenas  = document.getElementById('filtroApenasMinhas');
+        const ocultar = document.getElementById('filtroOcultarMinhas');
+        if (qual === 'apenas'  && apenas.checked)  ocultar.checked = false;
+        if (qual === 'ocultar' && ocultar.checked) apenas.checked  = false;
+        aplicarFiltros();
+    }
+
     function filtrar() { aplicarFiltros(); }
     function limparFiltros() {
         document.getElementById('filtroOrigem').value = '';
         document.getElementById('filtroDestino').value = '';
         document.getElementById('filtroDataInicio').value = '';
         document.getElementById('filtroDataFim').value = '';
+        document.getElementById('filtroApenasMinhas').checked = false;
+        document.getElementById('filtroOcultarMinhas').checked = false;
         aplicarFiltros();
     }
  

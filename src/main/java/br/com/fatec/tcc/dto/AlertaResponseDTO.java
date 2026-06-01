@@ -17,5 +17,8 @@ public record AlertaResponseDTO(
     Integer confirmacoes,
     Integer denuncias,
     LocalDateTime dataCriacao,
-    Boolean podeExcluir
+    Boolean podeExcluir,
+
+    /** Indica se o alerta foi criado pelo usuário logado (para os filtros "minhas"). */
+    Boolean meuAlerta
 ) {}

@@ -9,13 +9,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.fatec.tcc.dto.CaronaRequestDTO;
 import br.com.fatec.tcc.dto.CaronaResponseDTO;
+import br.com.fatec.tcc.dto.DenunciaAdminDTO;
+import br.com.fatec.tcc.dto.DenunciaRequestDTO;
 import br.com.fatec.tcc.dto.ParticipacaoCaronaDTO;
 import br.com.fatec.tcc.model.AvaliacaoCarona;
 import br.com.fatec.tcc.model.Carona;
+import br.com.fatec.tcc.model.DenunciaCarona;
 import br.com.fatec.tcc.model.ParticipacaoCarona;
 import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.repository.AvaliacaoCaronaRepository;
 import br.com.fatec.tcc.repository.CaronaRepository;
+import br.com.fatec.tcc.repository.DenunciaCaronaRepository;
 import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +30,7 @@ public class CaronaService {
     private final CaronaRepository caronaRepository;
     private final ParticipacaoCaronaRepository participacaoRepository;
     private final AvaliacaoCaronaRepository avaliacaoRepository;
+    private final DenunciaCaronaRepository denunciaRepository;
     private final UsuarioService usuarioService;
 
     @Transactional
@@ -252,6 +257,204 @@ public class CaronaService {
         avaliacaoRepository.save(avaliacao);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Denúncias
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Passageiros confirmados de uma carona — usado pelo motorista ao denunciar. */
+    public List<ParticipacaoCaronaDTO> listarPassageirosConfirmados(Long caronaId, String emailMotorista) {
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        Usuario motorista = usuarioService.findUserByUsername(emailMotorista);
+        if (!carona.getMotorista().getId().equals(motorista.getId())) {
+            throw new RuntimeException("Apenas o motorista pode ver os passageiros desta carona");
+        }
+        return participacaoRepository.findByCarona(carona).stream()
+                .filter(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Registra uma denúncia. O papel (passageiro x motorista) é determinado pelo
+     * servidor: se o usuário logado é o motorista da carona, segue o fluxo de motorista;
+     * caso contrário, é tratado como passageiro.
+     */
+    @Transactional
+    public void denunciar(Long caronaId, String emailUsuario, DenunciaRequestDTO req) {
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        if (carona.getStatus() != Carona.StatusCarona.FINALIZADA) {
+            throw new RuntimeException("Só é possível denunciar caronas finalizadas.");
+        }
+        Usuario usuario = usuarioService.findUserByUsername(emailUsuario);
+
+        if (carona.getMotorista().getId().equals(usuario.getId())) {
+            denunciarComoMotorista(carona, usuario, req);
+        } else {
+            denunciarComoPassageiro(carona, usuario, req);
+        }
+    }
+
+    /** Passageiro confirmado denuncia o motorista da carona. */
+    private void denunciarComoPassageiro(Carona carona, Usuario passageiro, DenunciaRequestDTO req) {
+        DenunciaCarona.CategoriaDenuncia categoria = parseCategoria(req.categoria());
+        validarDescricao(req.descricao());
+
+        ParticipacaoCarona participacao = participacaoRepository
+                .findByCaronaAndPassageiro(carona, passageiro)
+                .orElseThrow(() -> new RuntimeException("Você não participou desta carona."));
+        if (participacao.getStatus() != ParticipacaoCarona.StatusParticipacao.CONFIRMADA) {
+            throw new RuntimeException("Apenas passageiros confirmados podem denunciar.");
+        }
+
+        Usuario motorista = carona.getMotorista();
+        if (denunciaRepository.existsByCaronaAndDenuncianteAndDenunciado(carona, passageiro, motorista)) {
+            throw new RuntimeException("Você já registrou uma denúncia para esta carona.");
+        }
+        salvarDenuncia(carona, passageiro, motorista,
+                DenunciaCarona.TipoDenunciante.PASSAGEIRO, categoria, req.descricao());
+    }
+
+    /**
+     * Motorista denuncia um passageiro específico (alvoEmail) ou a carona inteira
+     * (todaCarona = true), gerando uma denúncia para cada passageiro confirmado.
+     */
+    private void denunciarComoMotorista(Carona carona, Usuario motorista, DenunciaRequestDTO req) {
+        DenunciaCarona.CategoriaDenuncia categoria = parseCategoria(req.categoria());
+        validarDescricao(req.descricao());
+
+        List<ParticipacaoCarona> confirmados = participacaoRepository.findByCarona(carona).stream()
+                .filter(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
+                .collect(Collectors.toList());
+
+        boolean todaCarona = Boolean.TRUE.equals(req.todaCarona());
+
+        if (todaCarona) {
+            if (confirmados.isEmpty()) {
+                throw new RuntimeException("Esta carona não teve passageiros confirmados.");
+            }
+            int criadas = 0;
+            for (ParticipacaoCarona p : confirmados) {
+                Usuario passageiro = p.getPassageiro();
+                if (!denunciaRepository.existsByCaronaAndDenuncianteAndDenunciado(carona, motorista, passageiro)) {
+                    salvarDenuncia(carona, motorista, passageiro,
+                            DenunciaCarona.TipoDenunciante.MOTORISTA, categoria, req.descricao());
+                    criadas++;
+                }
+            }
+            if (criadas == 0) {
+                throw new RuntimeException("Você já denunciou todos os passageiros desta carona.");
+            }
+        } else {
+            if (req.alvoEmail() == null || req.alvoEmail().isBlank()) {
+                throw new RuntimeException("Selecione o passageiro a ser denunciado.");
+            }
+            Usuario alvo = usuarioService.findUserByUsername(req.alvoEmail());
+            boolean ehConfirmado = confirmados.stream()
+                    .anyMatch(p -> p.getPassageiro().getId().equals(alvo.getId()));
+            if (!ehConfirmado) {
+                throw new RuntimeException("O passageiro informado não participou desta carona.");
+            }
+            if (denunciaRepository.existsByCaronaAndDenuncianteAndDenunciado(carona, motorista, alvo)) {
+                throw new RuntimeException("Você já denunciou este passageiro nesta carona.");
+            }
+            salvarDenuncia(carona, motorista, alvo,
+                    DenunciaCarona.TipoDenunciante.MOTORISTA, categoria, req.descricao());
+        }
+    }
+
+    private void salvarDenuncia(Carona carona, Usuario denunciante, Usuario denunciado,
+                                DenunciaCarona.TipoDenunciante tipo,
+                                DenunciaCarona.CategoriaDenuncia categoria, String descricao) {
+        DenunciaCarona d = new DenunciaCarona();
+        d.setCarona(carona);
+        d.setDenunciante(denunciante);
+        d.setDenunciado(denunciado);
+        d.setTipoDenunciante(tipo);
+        d.setCategoria(categoria);
+        d.setDescricao(descricao.trim());
+        d.setStatus(DenunciaCarona.StatusDenuncia.PENDENTE);
+        denunciaRepository.save(d);
+    }
+
+    private DenunciaCarona.CategoriaDenuncia parseCategoria(String categoria) {
+        if (categoria == null || categoria.isBlank()) {
+            throw new RuntimeException("Selecione a categoria da denúncia.");
+        }
+        try {
+            return DenunciaCarona.CategoriaDenuncia.valueOf(categoria.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Categoria de denúncia inválida.");
+        }
+    }
+
+    private void validarDescricao(String descricao) {
+        if (descricao == null || descricao.trim().length() < 5) {
+            throw new RuntimeException("Descreva o ocorrido com pelo menos 5 caracteres.");
+        }
+        if (descricao.trim().length() > 1000) {
+            throw new RuntimeException("A descrição não pode passar de 1000 caracteres.");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Denúncias — administração
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Lista todas as denúncias (opcionalmente filtradas por status) para o admin. */
+    public List<DenunciaAdminDTO> listarDenuncias(String statusFiltro) {
+        List<DenunciaCarona> lista;
+        if (statusFiltro == null || statusFiltro.isBlank()) {
+            lista = denunciaRepository.findAllByOrderByDataDenunciaDesc();
+        } else {
+            DenunciaCarona.StatusDenuncia status;
+            try {
+                status = DenunciaCarona.StatusDenuncia.valueOf(statusFiltro.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Status inválido.");
+            }
+            lista = denunciaRepository.findByStatusOrderByDataDenunciaDesc(status);
+        }
+        return lista.stream().map(this::toDenunciaAdminDTO).collect(Collectors.toList());
+    }
+
+    /** Atualiza o status de uma denúncia (PENDENTE, EM_ANALISE, RESOLVIDA, ARQUIVADA). */
+    @Transactional
+    public void atualizarStatusDenuncia(Long denunciaId, String novoStatus) {
+        DenunciaCarona d = denunciaRepository.findById(denunciaId)
+                .orElseThrow(() -> new RuntimeException("Denúncia não encontrada"));
+        if (novoStatus == null || novoStatus.isBlank()) {
+            throw new RuntimeException("Informe o novo status.");
+        }
+        try {
+            d.setStatus(DenunciaCarona.StatusDenuncia.valueOf(novoStatus.trim().toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Status inválido.");
+        }
+        denunciaRepository.save(d);
+    }
+
+    private DenunciaAdminDTO toDenunciaAdminDTO(DenunciaCarona d) {
+        Carona c = d.getCarona();
+        return new DenunciaAdminDTO(
+                d.getId(),
+                c.getId(),
+                c.getOrigem(),
+                c.getDestino(),
+                c.getHorarioSaida(),
+                d.getTipoDenunciante().name(),
+                d.getDenunciante().getNomeCompleto(),
+                d.getDenunciante().getEmail(),
+                d.getDenunciado().getNomeCompleto(),
+                d.getDenunciado().getEmail(),
+                d.getCategoria().name(),
+                d.getDescricao(),
+                d.getStatus().name(),
+                d.getDataDenuncia()
+        );
+    }
+
     public List<ParticipacaoCaronaDTO> listarSolicitacoesPorCarona(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -300,14 +503,24 @@ public class CaronaService {
 
         // Pode avaliar: carona finalizada + passageiro confirmado + ainda não avaliou
         boolean podeAvaliar = false;
+        // Pode denunciar: carona finalizada + (motorista com passageiros confirmados
+        //                 OU passageiro confirmado)
+        boolean podeDenunciar = false;
         if (usuarioLogado != null
-                && carona.getStatus() == Carona.StatusCarona.FINALIZADA
-                && !motorista.getId().equals(usuarioLogado.getId())) {
-            var optP = participacaoRepository.findByCaronaAndPassageiro(carona, usuarioLogado);
-            if (optP.isPresent()
-                    && optP.get().getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA
-                    && !avaliacaoRepository.existsByCaronaAndPassageiro(carona, usuarioLogado)) {
-                podeAvaliar = true;
+                && carona.getStatus() == Carona.StatusCarona.FINALIZADA) {
+            boolean ehMotorista = motorista.getId().equals(usuarioLogado.getId());
+            if (ehMotorista) {
+                long confirmados = participacaoRepository.countByCaronaAndStatus(
+                        carona, ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
+                podeDenunciar = confirmados > 0;
+            } else {
+                var optP = participacaoRepository.findByCaronaAndPassageiro(carona, usuarioLogado);
+                boolean confirmado = optP.isPresent()
+                        && optP.get().getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA;
+                podeDenunciar = confirmado;
+                if (confirmado && !avaliacaoRepository.existsByCaronaAndPassageiro(carona, usuarioLogado)) {
+                    podeAvaliar = true;
+                }
             }
         }
 
@@ -326,7 +539,8 @@ public class CaronaService {
                 carona.getStatus(),
                 media != null ? Math.round(media * 10.0) / 10.0 : null,
                 totalAvaliacoes,
-                podeAvaliar
+                podeAvaliar,
+                podeDenunciar
         );
     }
 

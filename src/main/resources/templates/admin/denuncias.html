@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Denúncias</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 10px;
+        }
+        .sidebar .logout-btn {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            font-size: 1rem;
+        }
+        .sidebar .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 10px;
+        }
+        .filtros-card { background-color: #f8f9fa; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+        .desc-cell { max-width: 280px; white-space: pre-wrap; word-break: break-word; }
+        .resumo-card { border: none; border-radius: 12px; color: #fff; }
+    </style>
+</head>
+<body>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 px-0 sidebar">
+            <div class="text-center py-4">
+                <i class="bi bi-shield-shaded display-3"></i>
+                <h4 class="mt-2">Segurança Fatec ZL</h4>
+            </div>
+            <nav class="nav flex-column px-3">
+                <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+                <a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+                <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+                <a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+                <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+                <a href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+                <a href="/admin/denuncias" class="active"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </form>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 px-4 py-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="mb-0"><i class="bi bi-flag-fill text-danger"></i> Denúncias de Caronas</h2>
+                <span class="badge bg-success p-2"><i class="bi bi-person-circle"></i> <span sec:authentication="name"></span></span>
+            </div>
+
+            <!-- Resumo -->
+            <div class="row g-3 mb-3" id="resumoCards">
+                <div class="col-6 col-md-3"><div class="resumo-card p-3" style="background:#ffc107;color:#000"><div class="small">Pendentes</div><div class="h4 mb-0" id="cntPendente">—</div></div></div>
+                <div class="col-6 col-md-3"><div class="resumo-card p-3" style="background:#0dcaf0;color:#000"><div class="small">Em análise</div><div class="h4 mb-0" id="cntAnalise">—</div></div></div>
+                <div class="col-6 col-md-3"><div class="resumo-card p-3" style="background:#198754"><div class="small">Resolvidas</div><div class="h4 mb-0" id="cntResolvida">—</div></div></div>
+                <div class="col-6 col-md-3"><div class="resumo-card p-3" style="background:#6c757d"><div class="small">Arquivadas</div><div class="h4 mb-0" id="cntArquivada">—</div></div></div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filtros-card">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Filtrar por status</label>
+                        <select id="filtroStatus" class="form-select" onchange="carregarDenuncias()">
+                            <option value="">Todos</option>
+                            <option value="PENDENTE">Pendente</option>
+                            <option value="EM_ANALISE">Em análise</option>
+                            <option value="RESOLVIDA">Resolvida</option>
+                            <option value="ARQUIVADA">Arquivada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-secondary w-100" onclick="carregarDenuncias()">
+                            <i class="bi bi-arrow-clockwise"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela -->
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Denunciante</th>
+                        <th>Denunciado</th>
+                        <th>Carona</th>
+                        <th>Categoria</th>
+                        <th>Descrição</th>
+                        <th>Status</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tabelaDenuncias">
+                    <tr><td colspan="8" class="text-center py-4">
+                        <div class="spinner-border text-primary"></div>
+                    </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const CATEGORIAS = {
+        COMPORTAMENTO_INADEQUADO: 'Comportamento inadequado',
+        DIRECAO_PERIGOSA:         'Direção perigosa',
+        ASSEDIO:                  'Assédio',
+        COBRANCA_INDEVIDA:        'Cobrança indevida',
+        ATRASO_OU_AUSENCIA:       'Atraso ou ausência',
+        VEICULO_INADEQUADO:       'Veículo inadequado / inseguro',
+        OUTRO:                    'Outro'
+    };
+    const STATUS_LABEL = {
+        PENDENTE:   'Pendente',
+        EM_ANALISE: 'Em análise',
+        RESOLVIDA:  'Resolvida',
+        ARQUIVADA:  'Arquivada'
+    };
+    const TIPO_BADGE = {
+        PASSAGEIRO: '<span class="badge bg-info text-dark"><i class="bi bi-person"></i> Passageiro</span>',
+        MOTORISTA:  '<span class="badge bg-primary"><i class="bi bi-car-front"></i> Motorista</span>'
+    };
+
+    function escapar(s) {
+        return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function formatarData(d) { return d ? new Date(d).toLocaleString('pt-BR') : '—'; }
+
+    function carregarDenuncias() {
+        const status = document.getElementById('filtroStatus').value;
+        const url = '/api/admin/denuncias' + (status ? `?status=${status}` : '');
+        document.getElementById('tabelaDenuncias').innerHTML =
+            '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+
+        fetch(url)
+            .then(r => { if (!r.ok) throw new Error('Falha ao carregar'); return r.json(); })
+            .then(lista => {
+                atualizarResumo(lista);
+                const tbody = document.getElementById('tabelaDenuncias');
+                if (!lista || lista.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Nenhuma denúncia encontrada.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = lista.map(d => `
+                    <tr>
+                        <td class="small">${formatarData(d.dataDenuncia)}</td>
+                        <td>${TIPO_BADGE[d.tipoDenunciante] || d.tipoDenunciante}</td>
+                        <td class="small"><strong>${escapar(d.denuncianteNome)}</strong><br><span class="text-muted">${escapar(d.denuncianteEmail)}</span></td>
+                        <td class="small"><strong>${escapar(d.denunciadoNome)}</strong><br><span class="text-muted">${escapar(d.denunciadoEmail)}</span></td>
+                        <td class="small">${escapar(d.origem)} → ${escapar(d.destino)}<br><span class="text-muted">${formatarData(d.horarioSaida)}</span></td>
+                        <td class="small">${CATEGORIAS[d.categoria] || d.categoria}</td>
+                        <td class="small desc-cell">${escapar(d.descricao)}</td>
+                        <td>
+                            <select class="form-select form-select-sm" onchange="alterarStatus(${d.id}, this.value)">
+                                ${Object.keys(STATUS_LABEL).map(s =>
+                                    `<option value="${s}" ${s === d.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+                            </select>
+                        </td>
+                    </tr>`).join('');
+            })
+            .catch(() => {
+                document.getElementById('tabelaDenuncias').innerHTML =
+                    '<tr><td colspan="8" class="text-center text-danger py-4">Erro ao carregar denúncias.</td></tr>';
+            });
+    }
+
+    function atualizarResumo(lista) {
+        const c = { PENDENTE: 0, EM_ANALISE: 0, RESOLVIDA: 0, ARQUIVADA: 0 };
+        (lista || []).forEach(d => { if (c[d.status] !== undefined) c[d.status]++; });
+        document.getElementById('cntPendente').textContent  = c.PENDENTE;
+        document.getElementById('cntAnalise').textContent   = c.EM_ANALISE;
+        document.getElementById('cntResolvida').textContent = c.RESOLVIDA;
+        document.getElementById('cntArquivada').textContent = c.ARQUIVADA;
+    }
+
+    function alterarStatus(id, novoStatus) {
+        fetch(`/api/admin/denuncias/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: novoStatus })
+        })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) throw new Error(data.error || 'Erro ao atualizar status.');
+            // Recarrega só se houver filtro ativo (para refletir a saída da lista)
+            if (document.getElementById('filtroStatus').value) carregarDenuncias();
+            else carregarDenuncias();
+        })
+        .catch(err => alert('Erro: ' + err.message));
+    }
+
+    carregarDenuncias();
+</script>
+</body>
+</html>

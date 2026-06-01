@@ -96,8 +96,10 @@ public class AlertaService {
 
     private AlertaResponseDTO convertToResponseDTO(Alerta alerta, Usuario usuarioLogado) {
         boolean podeExcluir = false;
+        boolean meuAlerta = false;
         if (usuarioLogado != null) {
-            podeExcluir = alerta.getUsuario().getId().equals(usuarioLogado.getId()) ||
+            meuAlerta = alerta.getUsuario().getId().equals(usuarioLogado.getId());
+            podeExcluir = meuAlerta ||
                           usuarioLogado.getRole() == Usuario.Role.ADMIN ||
                           usuarioLogado.getRole() == Usuario.Role.MODERATOR;
         }
@@ -115,7 +117,8 @@ public class AlertaService {
             alerta.getConfirmacoes(),
             alerta.getDenuncias(),
             alerta.getDataCriacao(),
-            podeExcluir
+            podeExcluir,
+            meuAlerta
         );
     }
 }

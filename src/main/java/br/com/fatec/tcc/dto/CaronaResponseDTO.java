@@ -24,5 +24,12 @@ public record CaronaResponseDTO(
     Long totalAvaliacoesMotorista,
 
     /** Indica se o passageiro logado pode avaliar esta carona (FINALIZADA e ainda não avaliou). */
-    Boolean podeAvaliar
+    Boolean podeAvaliar,
+
+    /**
+     * Indica se o usuário logado pode denunciar nesta carona.
+     * Passageiro confirmado (denuncia o motorista) ou motorista com passageiros
+     * confirmados (denuncia passageiro/carona) — sempre apenas após FINALIZADA.
+     */
+    Boolean podeDenunciar
 ) {}

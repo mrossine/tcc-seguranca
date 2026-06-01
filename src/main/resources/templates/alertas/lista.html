@@ -172,6 +172,16 @@
 								<input type="date" class="form-control" id="dataFim">
 							</div>
 							<div class="col-12">
+								<div class="form-check form-check-inline">
+									<input class="form-check-input" type="checkbox" id="filtroApenasMeus" onchange="onToggleMeus('apenas')">
+									<label class="form-check-label" for="filtroApenasMeus"><i class="bi bi-person-check"></i> Apenas os meus alertas</label>
+								</div>
+								<div class="form-check form-check-inline">
+									<input class="form-check-input" type="checkbox" id="filtroOcultarMeus" onchange="onToggleMeus('ocultar')">
+									<label class="form-check-label" for="filtroOcultarMeus"><i class="bi bi-person-dash"></i> Ocultar os meus alertas</label>
+								</div>
+							</div>
+							<div class="col-12">
 								<button class="btn btn-primary" onclick="filtrar()">
 									<i class="bi bi-search"></i> Filtrar
 								</button>
@@ -284,6 +294,12 @@
                 filtrados = filtrados.filter(a => new Date(a.dataHora) <= fim);
             }
 
+            // Filtros "meus alertas"
+            const apenasMeus = document.getElementById('filtroApenasMeus').checked;
+            const ocultarMeus = document.getElementById('filtroOcultarMeus').checked;
+            if (apenasMeus)       filtrados = filtrados.filter(a => a.meuAlerta);
+            else if (ocultarMeus) filtrados = filtrados.filter(a => !a.meuAlerta);
+
             const container = document.getElementById('alertasContainer');
             if (filtrados.length === 0) {
                 container.innerHTML =
@@ -356,6 +372,15 @@
             `).join('');
         }
 
+        // Mantém os dois checkboxes mutuamente exclusivos e reaplica os filtros
+        function onToggleMeus(qual) {
+            const apenas  = document.getElementById('filtroApenasMeus');
+            const ocultar = document.getElementById('filtroOcultarMeus');
+            if (qual === 'apenas'  && apenas.checked)  ocultar.checked = false;
+            if (qual === 'ocultar' && ocultar.checked) apenas.checked  = false;
+            aplicarFiltros();
+        }
+
         function filtrar() {
             aplicarFiltros();
         }
@@ -364,6 +389,8 @@
             document.getElementById('tipoFiltro').value = '';
             document.getElementById('dataInicio').value = '';
             document.getElementById('dataFim').value = '';
+            document.getElementById('filtroApenasMeus').checked = false;
+            document.getElementById('filtroOcultarMeus').checked = false;
             aplicarFiltros();
         }
 

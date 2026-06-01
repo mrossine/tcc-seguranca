@@ -1,6 +1,7 @@
 package br.com.fatec.tcc.rest.controller;
 
 import br.com.fatec.tcc.dto.CaronaResponseDTO;
+import br.com.fatec.tcc.dto.DenunciaRequestDTO;
 import br.com.fatec.tcc.dto.ParticipacaoCaronaDTO;
 import br.com.fatec.tcc.service.CaronaService;
 import lombok.RequiredArgsConstructor;
@@ -112,6 +113,32 @@ public class CaronaRestController {
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * GET /api/caronas/{id}/passageiros-confirmados
+     * Lista os passageiros confirmados — usado pelo motorista ao escolher quem denunciar.
+     */
+    @GetMapping("/{id}/passageiros-confirmados")
+    public List<ParticipacaoCaronaDTO> passageirosConfirmados(@PathVariable Long id, Authentication auth) {
+        return caronaService.listarPassageirosConfirmados(id, auth.getName());
+    }
+
+    /**
+     * POST /api/caronas/{id}/denunciar
+     * Body: { "categoria": "...", "descricao": "...", "alvoEmail": "...", "todaCarona": false }
+     * O papel (passageiro x motorista) é determinado pelo servidor.
+     */
+    @PostMapping("/{id}/denunciar")
+    public ResponseEntity<?> denunciar(@PathVariable Long id,
+                                       @RequestBody DenunciaRequestDTO body,
+                                       Authentication auth) {
+        try {
+            caronaService.denunciar(id, auth.getName(), body);
+            return ResponseEntity.ok(Map.of("message", "Denúncia registrada com sucesso!"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 }

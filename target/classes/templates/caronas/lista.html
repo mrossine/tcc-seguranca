@@ -385,7 +385,7 @@
             fetch(`/api/caronas/${id}/solicitar`, { method: 'POST' })
                 .then(res => {
                     if (res.ok) { alert('Solicitação enviada com sucesso!'); carregarCaronas(); }
-                    else return res.text().then(msg => { throw new Error(msg); });
+                    else return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 })
                 .catch(err => alert('Erro: ' + err.message));
         }
@@ -396,7 +396,7 @@
             fetch(`/api/caronas/${id}/excluir`, { method: 'DELETE' })
                 .then(res => {
                     if (res.ok) { alert('Carona excluída com sucesso.'); carregarCaronas(); }
-                    else return res.text().then(msg => { throw new Error(msg); });
+                    else return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 })
                 .catch(err => alert('Erro: ' + err.message));
         }
@@ -448,16 +448,16 @@
         fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/aceitar`, { method: 'PUT' })
             .then(res => {
                 if (res.ok) { alert('Passageiro aceito!'); carregarSolicitacoesModal(caronaId); carregarCaronas(); }
-                else return res.text().then(msg => { throw new Error(msg); });
+                else return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
             })
             .catch(err => alert('Erro: ' + err.message));
     }
- 
+
     function recusar(caronaId, participacaoId) {
         fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/recusar`, { method: 'PUT' })
             .then(res => {
                 if (res.ok) { alert('Solicitação recusada.'); carregarSolicitacoesModal(caronaId); }
-                else return res.text().then(msg => { throw new Error(msg); });
+                else return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
             })
             .catch(err => alert('Erro: ' + err.message));
     }
@@ -467,7 +467,7 @@
             fetch(`/api/caronas/${id}/finalizar`, { method: 'PUT' })
                 .then(res => {
                     if (res.ok) { alert('Viagem finalizada com sucesso!'); carregarCaronas(); }
-                    else return res.text().then(msg => { throw new Error(msg); });
+                    else return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 })
                 .catch(err => alert('Erro: ' + err.message));
         }

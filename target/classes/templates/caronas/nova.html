@@ -43,6 +43,26 @@
 .btn-submit:hover {
 	transform: scale(1.05);
 }
+.geo-suggestions {
+    position: absolute;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+.geo-suggestions .geo-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.geo-suggestions .geo-item:hover { background: #f0f4ff; }
+.geo-validated { color: #28a745; font-size: 12px; }
+.geo-wrap { position: relative; }
 
 .sidebar .logout-btn {
 	color: rgba(255, 255, 255, 0.8);
@@ -115,11 +135,31 @@
 						<form id="caronaForm" method="post" th:action="@{/caronas/nova}" th:object="${carona}">
 							<div class="mb-3">
 								<label class="fw-bold">Origem</label>
-								<input type="text" class="form-control" th:field="*{origem}" required>
+								<div class="geo-wrap">
+									<input type="text" class="form-control" th:field="*{origem}"
+									       id="origemInput" autocomplete="off"
+									       placeholder="Ex: FATEC Zona Leste, São Paulo" required>
+									<div id="origemSugestoes" class="geo-suggestions d-none"></div>
+								</div>
+								<div id="origemStatus" class="geo-validated mt-1 d-none">
+									<i class="bi bi-check-circle-fill"></i> <span id="origemEnderecoValidado"></span>
+								</div>
+								<!-- Sem coordenadas de origem no DTO — campos informativos apenas -->
 							</div>
 							<div class="mb-3">
 								<label class="fw-bold">Destino</label>
-								<input type="text" class="form-control" th:field="*{destino}" required>
+								<div class="geo-wrap">
+									<input type="text" class="form-control" th:field="*{destino}"
+									       id="destinoInput" autocomplete="off"
+									       placeholder="Ex: Metrô Itaquera, São Paulo" required>
+									<div id="destinoSugestoes" class="geo-suggestions d-none"></div>
+								</div>
+								<div id="destinoStatus" class="geo-validated mt-1 d-none">
+									<i class="bi bi-check-circle-fill"></i> <span id="destinoEnderecoValidado"></span>
+								</div>
+								<!-- Nomes mapeados para os campos do CaronaRequestDTO -->
+								<input type="hidden" id="destinoLat" th:field="*{destinoLatitude}">
+								<input type="hidden" id="destinoLng" th:field="*{destinoLongitude}">
 							</div>
 							<div class="mb-3">
 								<label class="fw-bold">Horário de Saída</label>
@@ -159,7 +199,75 @@
 		</div>
 	</div>
 
-	<script
-		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script>
+	// ── Geocodificação com debounce ───────────────────────────────────────────
+	// Apenas o destino armazena coordenadas (para geofencing no rastreamento)
+	const GEO_CAMPOS = [
+		{ inputId: 'origemInput',  sugestoesId: 'origemSugestoes',  statusId: 'origemStatus',  validadoId: 'origemEnderecoValidado',  latId: null,         lngId: null          },
+		{ inputId: 'destinoInput', sugestoesId: 'destinoSugestoes', statusId: 'destinoStatus', validadoId: 'destinoEnderecoValidado', latId: 'destinoLat', lngId: 'destinoLng'  }
+	];
+
+	GEO_CAMPOS.forEach(cfg => {
+		const input      = document.getElementById(cfg.inputId);
+		const sugestoes  = document.getElementById(cfg.sugestoesId);
+		const status     = document.getElementById(cfg.statusId);
+		const validadoEl = document.getElementById(cfg.validadoId);
+		const latEl      = document.getElementById(cfg.latId);
+		const lngEl      = document.getElementById(cfg.lngId);
+		let debounce     = null;
+
+		input.addEventListener('input', function() {
+			if (latEl) latEl.value = '';
+			if (lngEl) lngEl.value = '';
+			status.classList.add('d-none');
+			sugestoes.classList.add('d-none');
+			sugestoes.innerHTML = '';
+			clearTimeout(debounce);
+			const texto = this.value.trim();
+			if (texto.length < 4) return;
+			debounce = setTimeout(() => buscarEndereco(texto, cfg), 350);
+		});
+
+		// Fecha sugestões ao clicar fora
+		document.addEventListener('click', function(e) {
+			if (!input.contains(e.target) && !sugestoes.contains(e.target)) {
+				sugestoes.classList.add('d-none');
+			}
+		});
+	});
+
+	function buscarEndereco(texto, cfg) {
+		fetch(`/api/geocoding/geocodificar?endereco=${encodeURIComponent(texto)}`)
+			.then(r => r.json())
+			.then(data => {
+				const sugestoes = document.getElementById(cfg.sugestoesId);
+				if (data.erro) { sugestoes.classList.add('d-none'); return; }
+				sugestoes.innerHTML = `<div class="geo-item"
+					data-lat="${data.latitude}" data-lng="${data.longitude}"
+					data-endereco="${(data.endereco||'').replace(/"/g,'&quot;')}">
+					📍 ${(data.endereco||texto).substring(0, 80)}
+				</div>`;
+				sugestoes.classList.remove('d-none');
+
+				// Auto-seleciona se apenas 1 resultado
+				sugestoes.querySelector('.geo-item').addEventListener('click', function() {
+					selecionarEndereco(cfg, this.dataset.lat, this.dataset.lng, this.dataset.endereco);
+					sugestoes.classList.add('d-none');
+				});
+			})
+			.catch(() => {});
+	}
+
+	function selecionarEndereco(cfg, lat, lng, endereco) {
+		if (cfg.latId) document.getElementById(cfg.latId).value = lat;
+		if (cfg.lngId) document.getElementById(cfg.lngId).value = lng;
+		document.getElementById(cfg.validadoId).textContent = endereco;
+		document.getElementById(cfg.statusId).classList.remove('d-none');
+		const input = document.getElementById(cfg.inputId);
+		// Mantém o valor que o usuário digitou no input (para enviar ao form)
+		if (endereco && input.value.trim().length < 5) input.value = endereco;
+	}
+	</script>
 </body>
 </html>

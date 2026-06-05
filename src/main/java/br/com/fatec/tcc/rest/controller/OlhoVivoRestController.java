@@ -6,6 +6,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.util.Map;
+
 /**
  * Proxy REST para a API SPTrans Olho Vivo.
  * O frontend nunca acessa a API da SPTrans diretamente — passa sempre por aqui,
@@ -53,6 +56,21 @@ public class OlhoVivoRestController {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(json);
+    }
+
+    /**
+     * GET /api/onibus/status-atualizacao
+     * Retorna informações de timing para o relógio visual do frontend.
+     */
+    @GetMapping("/status-atualizacao")
+    public ResponseEntity<Map<String, Object>> statusAtualizacao() {
+        Instant ultima = olhoVivoService.getUltimaAtualizacao();
+        long msRestantes = olhoVivoService.msAteProximaAtualizacao();
+        return ResponseEntity.ok(Map.of(
+            "ultimaAtualizacao", ultima != null ? ultima.toString() : "",
+            "intervaloMs",       OlhoVivoService.INTERVALO_MS,
+            "msRestantes",       msRestantes
+        ));
     }
 
     /**

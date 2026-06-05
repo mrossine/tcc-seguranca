@@ -184,6 +184,27 @@ public class CaronaService {
     }
 
     /**
+     * Motorista finaliza manualmente a carona (ALTERAÇÃO de status para FINALIZADA).
+     * Permite fechamento de qualquer status não-terminal (ABERTA, CHEIA, FECHADA, COMPLETADA).
+     * Útil para encerrar caronas que não seguiram o fluxo automático de rastreamento.
+     */
+    @Transactional
+    public void finalizarCaronaManualmente(Long caronaId, String emailMotorista) {
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        Usuario motorista = usuarioService.findUserByUsername(emailMotorista);
+        if (!carona.getMotorista().getId().equals(motorista.getId())) {
+            throw new RuntimeException("Apenas o motorista pode finalizar a carona");
+        }
+        if (carona.getStatus() == Carona.StatusCarona.FINALIZADA
+                || carona.getStatus() == Carona.StatusCarona.CANCELADA) {
+            throw new IllegalStateException("Carona já está finalizada ou cancelada");
+        }
+        carona.setStatus(Carona.StatusCarona.FINALIZADA);
+        caronaRepository.save(carona);
+    }
+
+    /**
      * Motorista finaliza a viagem (ALTERAÇÃO de status para FINALIZADA).
      * Só é permitido após o início (estado FECHADA ou COMPLETADA). A partir daí,
      * passageiros podem avaliar e ambos podem denunciar.

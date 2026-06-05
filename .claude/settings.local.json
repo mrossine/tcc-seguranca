@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Format-Table FullName)",
+      "Bash(mvn compile *)",
+      "PowerShell(Get-Command *)",
+      "Bash(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -ErrorAction SilentlyContinue | Select-Object Name | Where-Object {$_.Name -match \"Maven|Java|Eclipse|IntelliJ\"})",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\eclipse\\\\plugins\" -ErrorAction SilentlyContinue | Where-Object {$_.Name -match \"maven\"} | Select-Object Name -First 5)"
+    ]
+  }
+}

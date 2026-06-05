@@ -4,6 +4,7 @@ import br.com.fatec.tcc.dto.UsuarioDTO;
 import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.service.UsuarioService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,15 +16,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-@Controller
+@RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
@@ -32,7 +34,6 @@ public class AuthController {
 	private final AuthenticationManager authenticationManager;
 
 	@PostMapping(value = "/login", produces = "application/json", consumes = "application/json")
-	@ResponseBody
 	public ResponseEntity<?> loginMobile(@RequestBody Map<String, String> credentials,
 										 HttpServletRequest request) {
 		String email = credentials.get("email");
@@ -76,7 +77,6 @@ public class AuthController {
 	}
 
 	@PostMapping(value = "/register", produces = "application/json", consumes = "application/json")
-	@ResponseBody
 	public ResponseEntity<?> register(@RequestBody UsuarioDTO usuarioDTO) {
 		Map<String, Object> response = new HashMap<>();
 
@@ -151,5 +151,15 @@ public class AuthController {
 			response.put("message", "Erro interno no servidor: " + e.getMessage());
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
+	}
+
+	@PostMapping(value = "/logout", produces = "application/json")
+	public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request,
+													  HttpServletResponse response,
+													  Authentication auth) {
+		new SecurityContextLogoutHandler().logout(request, response, auth);
+		new CookieClearingLogoutHandler("JSESSIONID", "XSRF-TOKEN").logout(request, response, auth);
+		log.info("Logout via API realizado");
+		return ResponseEntity.ok(Map.of("message", "Logout realizado com sucesso"));
 	}
 }

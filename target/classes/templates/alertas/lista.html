@@ -73,6 +73,20 @@
 	font-size: 0.78rem;
 }
 
+.btn-reacao {
+    padding: 5px 11px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    margin: 0 2px;
+}
+.btn-reacao:hover { background: #e8e8e8; }
+.btn-reacao-like.ativo  { background: #e8f5e9; border-color: #4caf50; }
+.btn-reacao-dislike.ativo { background: #ffebee; border-color: #f44336; }
+
 .sidebar .logout-btn {
 	color: rgba(255, 255, 255, 0.8);
 	text-decoration: none;
@@ -333,19 +347,25 @@
                                 ? `<div class="small text-muted mt-1 mb-2">${alerta.descricao}</div>`
                                 : ''}
                             <hr class="my-2">
-                            <!-- FIX 3: Botões Confirmar e Denunciar com CSRF -->
                             <div class="d-flex gap-2 flex-wrap">
                                 <button
-                                    onclick="confirmarAlerta(${alerta.id})"
-                                    class="btn btn-outline-success btn-sm flex-grow-1"
-                                    title="Sinalizar que este alerta é verdadeiro">
-                                    <i class="bi bi-check-circle"></i> Confirmar
-                                    <span class="badge bg-success ms-1">${alerta.confirmacoes || 0}</span>
+                                    class="btn-reacao btn-reacao-like"
+                                    data-alerta-id="${alerta.id}"
+                                    data-tipo="LIKE"
+                                    title="Confirmar alerta como verdadeiro">
+                                    👍 <span class="contador-like" id="like-${alerta.id}">0</span>
+                                </button>
+                                <button
+                                    class="btn-reacao btn-reacao-dislike"
+                                    data-alerta-id="${alerta.id}"
+                                    data-tipo="DISLIKE"
+                                    title="Marcar alerta como falso ou impreciso">
+                                    👎 <span class="contador-dislike" id="dislike-${alerta.id}">0</span>
                                 </button>
                                 <button
                                     onclick="denunciarAlerta(${alerta.id})"
                                     class="btn btn-outline-danger btn-sm flex-grow-1"
-                                    title="Denunciar conteúdo falso ou ofensivo">
+                                    title="Denunciar conteúdo ofensivo">
                                     <i class="bi bi-flag"></i> Denunciar
                                     <span class="badge bg-danger ms-1">${alerta.denuncias || 0}</span>
                                 </button>
@@ -517,6 +537,74 @@
         });
 
         carregarAlertas();
+
+        // ── Reações (LIKE / DISLIKE) ──────────────────────────────────────────
+
+        function carregarReacoes(alertaId) {
+            fetch(`/api/alertas/${alertaId}/reacoes`)
+                .then(r => r.json())
+                .then(data => {
+                    const likeEl    = document.getElementById(`like-${alertaId}`);
+                    const dislikeEl = document.getElementById(`dislike-${alertaId}`);
+                    if (likeEl)    likeEl.textContent    = data.likes    || 0;
+                    if (dislikeEl) dislikeEl.textContent = data.dislikes || 0;
+                })
+                .catch(() => {});
+        }
+
+        // Event delegation: todos os botões de reação usam um único listener
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-reacao');
+            if (!btn) return;
+            e.preventDefault();
+            const alertaId = btn.dataset.alertaId;
+            const tipo     = btn.dataset.tipo;
+
+            fetch(`/api/alertas/${alertaId}/reagir`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.sucesso && data.message) {
+                    mostrarToast(data.message, 'warning');
+                    return;
+                }
+                // Atualiza contadores
+                const likeEl    = document.getElementById(`like-${alertaId}`);
+                const dislikeEl = document.getElementById(`dislike-${alertaId}`);
+                if (likeEl)    likeEl.textContent    = data.likes    || 0;
+                if (dislikeEl) dislikeEl.textContent = data.dislikes || 0;
+
+                // Toggle visual dos botões do card
+                const card = btn.closest('.card');
+                if (card) {
+                    const likeBtn    = card.querySelector('.btn-reacao-like');
+                    const dislikeBtn = card.querySelector('.btn-reacao-dislike');
+                    if (tipo === 'LIKE') {
+                        const wasAtivo = likeBtn.classList.contains('ativo');
+                        likeBtn.classList.toggle('ativo', !wasAtivo);
+                        if (!wasAtivo && dislikeBtn) dislikeBtn.classList.remove('ativo');
+                    } else {
+                        const wasAtivo = dislikeBtn.classList.contains('ativo');
+                        dislikeBtn.classList.toggle('ativo', !wasAtivo);
+                        if (!wasAtivo && likeBtn) likeBtn.classList.remove('ativo');
+                    }
+                }
+            })
+            .catch(() => mostrarToast('Erro de conexão ao reagir ao alerta.', 'danger'));
+        });
+
+        // Carrega contadores após renderizar os cards
+        const _origAplicarFiltros = aplicarFiltros;
+        aplicarFiltros = function() {
+            _origAplicarFiltros();
+            // Aguarda DOM atualizar antes de buscar contadores
+            setTimeout(() => {
+                alertas.forEach(a => carregarReacoes(a.id));
+            }, 100);
+        };
     </script>
 </body>
 </html>

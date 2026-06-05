@@ -74,10 +74,42 @@
             font-size: 0.75rem;
         }
 
-        /* Timer countdown */
-        #countdown {
+        /* Relógio visual de atualização */
+        .olho-vivo-clock {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .clock-wrap {
+            width: 34px;
+            height: 34px;
+            position: relative;
+        }
+        .clock-svg { width: 100%; height: 100%; }
+        .clock-bg   { fill: none; stroke: #e0e0e0; stroke-width: 3; }
+        .clock-ring {
+            fill: none;
+            stroke: #4CAF50;
+            stroke-width: 3;
+            stroke-dasharray: 283;
+            stroke-dashoffset: 0;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.15s linear;
+        }
+        .clock-num {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            font-size: 9px;
             font-weight: bold;
-            color: #667eea;
+            color: #333;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -119,9 +151,17 @@
                     <small class="text-muted">SPTrans Olho Vivo — São Paulo</small>
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                    <span id="badgeAtualizacao" class="badge bg-secondary d-none">
-                        <i class="bi bi-arrow-clockwise"></i> Próxima atualização: <span id="countdown">60</span>s
-                    </span>
+                    <div id="relogioOlhoVivo" class="olho-vivo-clock d-none">
+                        <div class="clock-wrap">
+                            <svg class="clock-svg" viewBox="0 0 100 100">
+                                <circle class="clock-bg"   cx="50" cy="50" r="45"/>
+                                <circle id="clockRing" class="clock-ring" cx="50" cy="50" r="45"
+                                        transform="rotate(-90 50 50)"/>
+                            </svg>
+                            <div class="clock-num" id="clockNum">60s</div>
+                        </div>
+                        <span class="text-muted small"><i class="bi bi-arrow-clockwise"></i> Próxima atualização</span>
+                    </div>
                     <span class="badge bg-success p-2">
                         <i class="bi bi-person-circle"></i>
                         <span sec:authentication="name"></span>
@@ -221,8 +261,6 @@ let layerParadas       = L.layerGroup().addTo(mapa);
 let layerOnibus        = L.layerGroup().addTo(mapa);
 let polylineRota       = null;
 let intervaloAtualizacao = null;
-let timerCountdown     = null;
-let segundosRestantes  = 60;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Localização do usuário
@@ -312,8 +350,8 @@ function renderizarLinhas(linhas) {
 
         // Letreiro completo no formato do site oficial: "3728-10"
         const letreiro = sufixo ? `${ltNum}-${sufixo}` : (ltNum || (codigo ? `#${codigo}` : '?'));
-        // Destino em destaque conforme o sentido (igual ao Olho Vivo)
-        const destino  = (sentido === 2 || sentido === '2') ? principal : secundario;
+        // sl=1 = chegando ao Terminal Principal; sl=2 = chegando ao Terminal Secundário
+        const destino  = (sentido === 1 || sentido === '1') ? principal : secundario;
         // Subtítulo "Terminal Principal / Terminal Secundário"
         const subtitulo = [principal, secundario].filter(Boolean).join(' / ');
 
@@ -469,38 +507,66 @@ function renderizarOnibus(dados) {
 // ─────────────────────────────────────────────────────────────────────────────
 function iniciarIntervaloAtualizacao() {
     pararIntervalo();
-    segundosRestantes = 60;
-    atualizarCountdown();
-
-    document.getElementById('badgeAtualizacao').classList.remove('d-none');
-
-    timerCountdown = setInterval(() => {
-        segundosRestantes--;
-        atualizarCountdown();
-        if (segundosRestantes <= 0) segundosRestantes = 60;
-    }, 1000);
 
     intervaloAtualizacao = setInterval(() => {
         if (!linhaSelecionada) return;
         fetch(`/api/onibus/posicoes?codigoLinha=${linhaSelecionada.codigo}`)
             .then(r => r.json())
-            .then(posicoes => {
-                renderizarOnibus(posicoes);
-                segundosRestantes = 60;
-            })
+            .then(posicoes => renderizarOnibus(posicoes))
             .catch(err => console.error('Erro ao atualizar posições:', err));
     }, 60_000);
 }
 
 function pararIntervalo() {
     if (intervaloAtualizacao) { clearInterval(intervaloAtualizacao); intervaloAtualizacao = null; }
-    if (timerCountdown)       { clearInterval(timerCountdown);       timerCountdown = null; }
-    document.getElementById('badgeAtualizacao').classList.add('d-none');
+    document.getElementById('relogioOlhoVivo').classList.add('d-none');
 }
 
-function atualizarCountdown() {
-    document.getElementById('countdown').textContent = segundosRestantes;
+// ─────────────────────────────────────────────────────────────────────────────
+// Relógio visual SVG — Refinamento 7
+// ─────────────────────────────────────────────────────────────────────────────
+const CIRCUNFERENCIA = 2 * Math.PI * 45; // ≈ 282.7
+let relogioIntervalo = null;
+
+function iniciarRelogio() {
+    document.getElementById('relogioOlhoVivo').classList.remove('d-none');
+    if (relogioIntervalo) clearInterval(relogioIntervalo);
+    relogioIntervalo = setInterval(atualizarRelogio, 150);
 }
+
+function atualizarRelogio() {
+    fetch('/api/onibus/status-atualizacao')
+        .then(r => r.json())
+        .then(data => {
+            const msRestantes  = data.msRestantes  || 0;
+            const intervaloMs  = data.intervaloMs  || 60000;
+            const decorrido    = intervaloMs - msRestantes;
+            const progresso    = (decorrido / intervaloMs) * CIRCUNFERENCIA;
+            const offset       = CIRCUNFERENCIA - progresso;
+
+            const ring = document.getElementById('clockRing');
+            const num  = document.getElementById('clockNum');
+            if (ring) ring.style.strokeDashoffset = Math.max(0, offset);
+            if (num)  num.textContent = Math.ceil(msRestantes / 1000) + 's';
+
+            // Se chegou a zero, recarrega as posições
+            if (msRestantes <= 0 && linhaSelecionada) {
+                fetch(`/api/onibus/posicoes?codigoLinha=${linhaSelecionada.codigo}`)
+                    .then(r => r.json())
+                    .then(posicoes => renderizarOnibus(posicoes))
+                    .catch(() => {});
+            }
+        })
+        .catch(() => {});
+}
+
+// Inicia o relógio SVG junto com o intervalo de atualização existente
+const _origIniciarIntervalo = iniciarIntervaloAtualizacao;
+iniciarIntervaloAtualizacao = function() {
+    _origIniciarIntervalo();
+    iniciarRelogio();
+};
+const _origPararIntervalo = pararIntervalo;
 </script>
 </body>
 </html>

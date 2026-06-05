@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,10 +50,10 @@ public class AdminRestController {
 
     // 2. Deletar usuário por ID
     @DeleteMapping("/usuarios/{id}")
-    public ResponseEntity<?> deletarUsuario(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> deletarUsuario(@PathVariable Long id) {
         try {
             usuarioService.deletarUsuario(id);
-            return ResponseEntity.ok().body(Map.of("message", "Usuário excluído com sucesso"));
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

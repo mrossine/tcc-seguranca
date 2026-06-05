@@ -31,6 +31,17 @@
         .status-FINALIZADA { background: #6c757d; color: white; }
         .status-CANCELADA { background: #dc3545; color: white; }
         .info-row { padding: 12px 0; border-bottom: 1px solid #e0e0e0; }
+        /* Chat */
+        .chat-container { border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin-top: 24px; }
+        .chat-messages { max-height: 380px; overflow-y: auto; padding: 12px; background: #fafafa; border-radius: 8px; margin-bottom: 12px; }
+        .chat-msg { padding: 8px 12px; margin-bottom: 8px; border-radius: 12px; max-width: 80%; }
+        .chat-msg.propria { background: #dcf8c6; margin-left: auto; text-align: right; }
+        .chat-msg.outra { background: #fff; border: 1px solid #eee; }
+        .chat-msg .remetente { font-weight: bold; font-size: 12px; color: #555; }
+        .chat-msg .conteudo { font-size: 14px; margin: 2px 0; }
+        .chat-msg .hora { font-size: 11px; color: #999; }
+        .chat-input-area { display: flex; gap: 8px; }
+        .chat-input-area textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px; resize: none; font-size: 14px; }
         .sidebar .logout-btn {
             color: rgba(255, 255, 255, 0.8);
             text-decoration: none;
@@ -98,9 +109,19 @@
                             <div th:if="${carona.observacoes}" class="info-row"><div class="row"><div class="col-md-4 fw-bold">Obs:</div><div class="col-md-8" th:text="${carona.observacoes}"></div></div></div>
 
                             <!-- Botões para motorista -->
-                            <div th:if="${#authentication.name == carona.motoristaEmail and carona.status == 'ABERTA'}" class="mt-4 d-flex gap-2">
+                            <div th:if="${#authentication.name == carona.motoristaEmail and carona.status == 'ABERTA'}" class="mt-4 d-flex gap-2 flex-wrap">
                                 <button class="btn btn-danger" onclick="cancelarCarona()"><i class="bi bi-x-circle"></i> Cancelar Carona</button>
                                 <button class="btn btn-dark" onclick="excluirCarona()"><i class="bi bi-trash"></i> Excluir Carona</button>
+                            </div>
+                            <!-- Botão finalizar manual: motorista, status não-terminal -->
+                            <div th:if="${#authentication.name == carona.motoristaEmail
+                                          and carona.status != 'FINALIZADA'
+                                          and carona.status != 'CANCELADA'}" class="mt-3">
+                                <button id="btn-finalizar-carona" class="btn btn-warning"
+                                        th:data-carona-id="${carona.id}"
+                                        onclick="finalizarCaronaManual()">
+                                    <i class="bi bi-flag-fill"></i> Finalizar Carona
+                                </button>
                             </div>
                             <!-- Botão excluir para admin/moderador (quando não é o motorista) -->
                             <div th:if="${isAdminOuModerador and #authentication.name != carona.motoristaEmail and carona.status != 'CANCELADA'}" class="mt-4">
@@ -134,6 +155,21 @@
                             </ul>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Chat da Carona -->
+            <div class="chat-container" id="carona-chat" th:data-carona-id="${carona.id}">
+                <h5><i class="bi bi-chat-dots"></i> Chat da Carona</h5>
+                <div class="text-muted small mb-2">Apenas motorista e passageiros confirmados podem participar.</div>
+                <div id="chat-mensagens" class="chat-messages">
+                    <p class="text-muted text-center py-3">Carregando mensagens...</p>
+                </div>
+                <div class="chat-input-area">
+                    <textarea id="chat-input" rows="2" placeholder="Digite sua mensagem..."></textarea>
+                    <button id="chat-enviar" class="btn btn-primary align-self-end">
+                        <i class="bi bi-send"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -183,7 +219,7 @@
                     atualizarVagas();
                     carregarSolicitacoes();
                 } else {
-                    return res.text().then(msg => { throw new Error(msg); });
+                    return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 }
             })
             .catch(err => alert('Erro: ' + err.message));
@@ -196,7 +232,7 @@
                     alert('Passageiro recusado');
                     carregarSolicitacoes();
                 } else {
-                    return res.text().then(msg => { throw new Error(msg); });
+                    return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 }
             })
             .catch(err => alert('Erro: ' + err.message));
@@ -210,7 +246,7 @@
                         alert('Carona cancelada');
                         window.location.href = '/caronas';
                     } else {
-                        return res.text().then(msg => { throw new Error(msg); });
+                        return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                     }
                 })
                 .catch(err => alert('Erro: ' + err.message));
@@ -225,7 +261,7 @@
                         alert('Carona excluída');
                         window.location.href = '/caronas';
                     } else {
-                        return res.text().then(msg => { throw new Error(msg); });
+                        return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                     }
                 })
                 .catch(err => alert('Erro: ' + err.message));
@@ -242,9 +278,150 @@
             .catch(console.error);
     }
 
+    function finalizarCaronaManual() {
+        if (!confirm('Finalizar esta carona? Esta ação não pode ser desfeita.')) return;
+        fetch(`/api/caronas/${caronaId}/finalizar-manual`, { method: 'PUT' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.sucesso) {
+                    alert('Carona finalizada com sucesso!');
+                    window.location.reload();
+                } else {
+                    alert('Erro: ' + (data.erro || 'Não foi possível finalizar a carona.'));
+                }
+            })
+            .catch(() => alert('Erro de conexão ao finalizar a carona.'));
+    }
+
     if (isMotorista) {
         carregarSolicitacoes();
     }
+
+    // ── Chat da Carona ────────────────────────────────────────────────────────
+    const chatContainer  = document.getElementById('carona-chat');
+    const chatMensagens  = document.getElementById('chat-mensagens');
+    const chatInput      = document.getElementById('chat-input');
+    const chatEnviarBtn  = document.getElementById('chat-enviar');
+
+    let ultimoIdMensagem = 0;
+    let chatIntervalo    = null;
+
+    function formatarHora(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderizarMensagem(msg, append) {
+        const propria = (msg.remetenteEmail === usuarioAtual);
+        const div = document.createElement('div');
+        div.className = 'chat-msg ' + (propria ? 'propria' : 'outra');
+        div.dataset.msgId = msg.id;
+        div.innerHTML = `
+            ${!propria ? `<div class="remetente">${msg.remetenteNome}</div>` : ''}
+            <div class="conteudo">${msg.conteudo.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            <div class="hora">${formatarHora(msg.dataCriacao)}</div>
+        `;
+        if (append) {
+            chatMensagens.appendChild(div);
+            chatMensagens.scrollTop = chatMensagens.scrollHeight;
+        }
+        return div;
+    }
+
+    function carregarHistoricoChat() {
+        fetch(`/api/caronas/${caronaId}/mensagens`)
+            .then(r => {
+                if (!r.ok) return null;
+                return r.json();
+            })
+            .then(msgs => {
+                if (!msgs) {
+                    chatMensagens.innerHTML = '<p class="text-muted text-center py-3 small">Você não tem permissão para ver o chat desta carona.</p>';
+                    if (chatInput)      chatInput.disabled = true;
+                    if (chatEnviarBtn)  chatEnviarBtn.disabled = true;
+                    return;
+                }
+                chatMensagens.innerHTML = '';
+                if (msgs.length === 0) {
+                    chatMensagens.innerHTML = '<p class="text-muted text-center py-3 small">Nenhuma mensagem ainda. Seja o primeiro a enviar!</p>';
+                } else {
+                    msgs.forEach(m => {
+                        renderizarMensagem(m, true);
+                        if (m.id > ultimoIdMensagem) ultimoIdMensagem = m.id;
+                    });
+                }
+                // Polling a cada 4 segundos para novas mensagens
+                if (!chatIntervalo) {
+                    chatIntervalo = setInterval(verificarNovasMensagens, 4000);
+                }
+            })
+            .catch(() => {
+                chatMensagens.innerHTML = '<p class="text-muted text-center py-3 small">Chat indisponível.</p>';
+            });
+    }
+
+    function verificarNovasMensagens() {
+        fetch(`/api/caronas/${caronaId}/mensagens`)
+            .then(r => r.ok ? r.json() : null)
+            .then(msgs => {
+                if (!msgs) return;
+                msgs.forEach(m => {
+                    if (m.id > ultimoIdMensagem) {
+                        const placeholder = chatMensagens.querySelector('.text-muted.text-center');
+                        if (placeholder) chatMensagens.innerHTML = '';
+                        renderizarMensagem(m, true);
+                        ultimoIdMensagem = m.id;
+                    }
+                });
+            })
+            .catch(() => {});
+    }
+
+    function enviarMensagemChat() {
+        const texto = chatInput ? chatInput.value.trim() : '';
+        if (!texto) return;
+        chatInput.disabled = true;
+        chatEnviarBtn.disabled = true;
+
+        fetch(`/api/caronas/${caronaId}/mensagens`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conteudo: texto })
+        })
+        .then(r => r.json())
+        .then(msg => {
+            chatInput.value = '';
+            if (msg.id) {
+                const placeholder = chatMensagens.querySelector('.text-muted.text-center');
+                if (placeholder) chatMensagens.innerHTML = '';
+                renderizarMensagem(msg, true);
+                if (msg.id > ultimoIdMensagem) ultimoIdMensagem = msg.id;
+            } else {
+                alert('Erro: ' + (msg.message || 'Não foi possível enviar a mensagem.'));
+            }
+        })
+        .catch(() => alert('Erro de conexão ao enviar mensagem.'))
+        .finally(() => {
+            chatInput.disabled = false;
+            chatEnviarBtn.disabled = false;
+            chatInput.focus();
+        });
+    }
+
+    if (chatEnviarBtn) {
+        chatEnviarBtn.addEventListener('click', enviarMensagemChat);
+    }
+    if (chatInput) {
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                enviarMensagemChat();
+            }
+        });
+    }
+
+    carregarHistoricoChat();
 </script>
 </body>
 </html>

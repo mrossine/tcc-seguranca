@@ -11,6 +11,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -26,6 +28,9 @@ public class GeocodingController {
 
     private static final String NOMINATIM_URL =
             "https://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s&zoom=18&addressdetails=1&accept-language=pt-BR";
+
+    private static final String NOMINATIM_SEARCH_URL =
+            "https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1&addressdetails=1&accept-language=pt-BR";
 
     /**
      * Recebe latitude e longitude e retorna o endereço textual.
@@ -123,6 +128,66 @@ public class GeocodingController {
             log.error("Erro no reverse geocoding: {}", e.getMessage());
             resultado.put("endereco", null);
             return ResponseEntity.ok(resultado);
+        }
+    }
+
+    /**
+     * GET /api/geocoding/geocodificar?endereco={texto}
+     * Converte um endereço em coordenadas (forward geocoding via Nominatim).
+     * Retorna lat, lng e o endereço formatado. 400 se não encontrado.
+     */
+    @GetMapping("/geocodificar")
+    public ResponseEntity<Map<String, Object>> geocodificar(@RequestParam String endereco) {
+        Map<String, Object> resultado = new HashMap<>();
+        try {
+            String encoded = URLEncoder.encode(endereco, StandardCharsets.UTF_8);
+            String urlStr = String.format(NOMINATIM_SEARCH_URL, encoded);
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", "SegurancaFatecZL/1.0 (tcc-fatec-zl; contato@fatec.sp.gov.br)");
+            conn.setRequestProperty("Accept-Language", "pt-BR,pt;q=0.9");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(8000);
+
+            if (conn.getResponseCode() != 200) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("erro", "Endereço não encontrado: " + endereco));
+            }
+
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+            }
+
+            String json = sb.toString().trim();
+            // A resposta é um array JSON: [ { "lat": "...", "lon": "...", "display_name": "..." } ]
+            if (json.equals("[]") || json.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("erro", "Endereço não encontrado: " + endereco));
+            }
+
+            // Extrai lat, lon e display_name do primeiro resultado
+            String lat         = extrairValor(json, "lat");
+            String lon         = extrairValor(json, "lon");
+            String displayName = extrairValor(json, "display_name");
+
+            if (lat == null || lon == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("erro", "Coordenadas não encontradas para: " + endereco));
+            }
+
+            resultado.put("endereco", displayName != null ? displayName : endereco);
+            resultado.put("latitude",  Double.parseDouble(lat));
+            resultado.put("longitude", Double.parseDouble(lon));
+            log.info("Geocodificação '{}' -> lat={} lon={}", endereco, lat, lon);
+            return ResponseEntity.ok(resultado);
+
+        } catch (Exception e) {
+            log.error("Erro no geocoding direto '{}': {}", endereco, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("erro", "Erro ao geocodificar: " + e.getMessage()));
         }
     }
 

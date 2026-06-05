@@ -12,6 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -29,6 +31,7 @@ public class OlhoVivoService {
     private static final String BASE_URL       = "http://api.olhovivo.sptrans.com.br/v2.1";
     private static final long   CACHE_TTL_MS   = 60_000;          // 60 s para posições
     private static final long   AUTH_TTL_MS    = 25 * 60_000L;    // 25 min para reautenticar
+    public  static final long   INTERVALO_MS   = 60_000;          // intervalo entre atualizações
 
     @Value("${sptrans.token}")
     private String token;
@@ -42,6 +45,9 @@ public class OlhoVivoService {
     // Cache de posições: codigoLinha → PosicaoCache
     private record PosicaoCache(String json, long timestamp) {}
     private final ConcurrentHashMap<Integer, PosicaoCache> posicaoCache = new ConcurrentHashMap<>();
+
+    /** Momento da última atualização real de posições (para o relógio visual no frontend). */
+    private volatile Instant ultimaAtualizacao;
 
     @PostConstruct
     public void init() {
@@ -155,12 +161,22 @@ public class OlhoVivoService {
         try {
             String json = get("/Posicao/Linha?codigoLinha=" + codigoLinha);
             posicaoCache.put(codigoLinha, new PosicaoCache(json, System.currentTimeMillis()));
+            ultimaAtualizacao = Instant.now();
             return json;
         } catch (Exception e) {
             log.error("SPTrans: erro ao buscar posições da linha {} — {}", codigoLinha, e.getMessage());
             return "{\"vs\":[]}";
         }
     }
+
+    /** Milissegundos até a próxima atualização esperada (0 se desconhecido). */
+    public long msAteProximaAtualizacao() {
+        if (ultimaAtualizacao == null) return 0;
+        long decorrido = ChronoUnit.MILLIS.between(ultimaAtualizacao, Instant.now());
+        return Math.max(0, INTERVALO_MS - decorrido);
+    }
+
+    public Instant getUltimaAtualizacao() { return ultimaAtualizacao; }
 
     /**
      * Retorna as paradas (pontos de ônibus) de uma linha — usadas para

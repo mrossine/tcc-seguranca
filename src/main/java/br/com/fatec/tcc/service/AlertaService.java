@@ -3,14 +3,19 @@ package br.com.fatec.tcc.service;
 import br.com.fatec.tcc.dto.AlertaRequestDTO;
 import br.com.fatec.tcc.dto.AlertaResponseDTO;
 import br.com.fatec.tcc.model.Alerta;
+import br.com.fatec.tcc.model.AlertaReacao;
 import br.com.fatec.tcc.model.Usuario;
+import br.com.fatec.tcc.repository.AlertaReacaoRepository;
 import br.com.fatec.tcc.repository.AlertaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -20,11 +25,13 @@ import java.util.stream.Collectors;
  * preencher informações derivadas (ex.: se o alerta é do usuário logado e se
  * ele pode excluí-lo).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AlertaService {
 
     private final AlertaRepository alertaRepository;
+    private final AlertaReacaoRepository reacaoRepository;
     private final UsuarioService usuarioService;
 
     /**
@@ -109,6 +116,53 @@ public class AlertaService {
             throw new RuntimeException("Sem permissão para remover este alerta");
         }
         alertaRepository.delete(alerta);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Reações (LIKE / DISLIKE)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Alterna a reação do usuário no alerta (toggle).
+     * - Mesmo tipo já existente → remove a reação.
+     * - Tipo diferente → troca para o novo.
+     * - Sem reação prévia → cria nova.
+     */
+    @Transactional
+    public Map<String, Long> reagirAlerta(Long alertaId, AlertaReacao.TipoReacao tipo, String email) {
+        Alerta alerta = alertaRepository.findById(alertaId)
+                .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        Usuario usuario = usuarioService.findUserByUsername(email);
+
+        Optional<AlertaReacao> existente = reacaoRepository.findByAlertaIdAndUsuarioId(alertaId, usuario.getId());
+
+        if (existente.isPresent()) {
+            AlertaReacao reacao = existente.get();
+            if (reacao.getTipo() == tipo) {
+                reacaoRepository.delete(reacao);
+                log.info("Reação removida — alerta={} usuario={} tipo={}", alertaId, email, tipo);
+            } else {
+                reacao.setTipo(tipo);
+                reacaoRepository.save(reacao);
+                log.info("Reação alterada — alerta={} usuario={} tipo={}", alertaId, email, tipo);
+            }
+        } else {
+            AlertaReacao nova = new AlertaReacao();
+            nova.setAlerta(alerta);
+            nova.setUsuario(usuario);
+            nova.setTipo(tipo);
+            reacaoRepository.save(nova);
+            log.info("Reação criada — alerta={} usuario={} tipo={}", alertaId, email, tipo);
+        }
+
+        return obterContadoresReacoes(alertaId);
+    }
+
+    /** Retorna o total de likes e dislikes de um alerta. */
+    public Map<String, Long> obterContadoresReacoes(Long alertaId) {
+        long likes    = reacaoRepository.countByAlertaIdAndTipo(alertaId, AlertaReacao.TipoReacao.LIKE);
+        long dislikes = reacaoRepository.countByAlertaIdAndTipo(alertaId, AlertaReacao.TipoReacao.DISLIKE);
+        return Map.of("likes", likes, "dislikes", dislikes);
     }
 
     /** Lista (CONSULTA) todos os alertas criados por um usuário específico. */

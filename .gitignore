@@ -1,0 +1,19 @@
+# ─────────────────────────────────────────────────────────────
+# Ferramentas de IA / agentes (não versionar)
+# ─────────────────────────────────────────────────────────────
+.agents/
+.claude/
+.codex/
+.cursor/
+.junie/
+.aider*
+.github/copilot/
+CLAUDE.md
+AGENTS.md
+.mcp.json
+skills-lock.json
+
+# Artefatos do npx/skills
+node_modules/
+package-lock.json
+package.json

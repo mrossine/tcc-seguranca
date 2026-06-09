@@ -83,6 +83,8 @@ public class CaronaController {
 		Usuario usuario = usuarioService.findUserByUsername(auth.getName());
 		model.addAttribute("isAdminOuModerador",
 				usuario.getRole() == Usuario.Role.ADMIN || usuario.getRole() == Usuario.Role.MODERATOR);
+		// Só quem é motorista ou passageiro confirmado vê o chat e os participantes
+		model.addAttribute("podeVerChat", caronaService.podeAcessarChat(id, auth.getName()));
 		return "caronas/detalhes";
 	}
 }

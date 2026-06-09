@@ -22,4 +22,7 @@ public interface DenunciaCaronaRepository extends JpaRepository<DenunciaCarona, 
 
     /** Contagem por status (cards de resumo do admin). */
     long countByStatus(DenunciaCarona.StatusDenuncia status);
+
+    /** Remove todas as denúncias de uma carona (usado ao excluir a carona). */
+    void deleteByCarona(Carona carona);
 }

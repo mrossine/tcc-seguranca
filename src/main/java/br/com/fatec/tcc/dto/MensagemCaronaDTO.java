@@ -16,7 +16,8 @@ public record MensagemCaronaDTO(
     String remetenteEmail,
     String conteudo,
     LocalDateTime dataCriacao,
-    Boolean lido
+    Boolean lido,
+    Boolean sistema
 ) {
     public static MensagemCaronaDTO fromEntity(MensagemCarona m) {
         return new MensagemCaronaDTO(
@@ -26,7 +27,8 @@ public record MensagemCaronaDTO(
             m.getRemetente().getEmail(),
             m.getConteudo(),
             m.getDataCriacao(),
-            m.getLido()
+            m.getLido(),
+            Boolean.TRUE.equals(m.getSistema())
         );
     }
 }

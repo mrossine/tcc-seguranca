@@ -134,6 +134,12 @@ public class AuthController {
 				return ResponseEntity.badRequest().body(response);
 			}
 
+			// Validar tipo de usuário (aluno, docente ou funcionário)
+			if (usuarioDTO.tipoUsuario() == null) {
+				response.put("message", "Selecione se você é aluno, docente ou funcionário");
+				return ResponseEntity.badRequest().body(response);
+			}
+
 			// Tentar cadastrar
 			usuarioService.cadastrar(usuarioDTO);
 

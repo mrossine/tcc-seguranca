@@ -2,6 +2,7 @@ package br.com.fatec.tcc.rest.controller;
 
 import br.com.fatec.tcc.dto.AlertaRequestDTO;
 import br.com.fatec.tcc.dto.AlertaResponseDTO;
+import br.com.fatec.tcc.dto.DenunciaAlertaRequestDTO;
 import br.com.fatec.tcc.model.AlertaReacao;
 import br.com.fatec.tcc.service.AlertaService;
 import jakarta.validation.Valid;
@@ -39,10 +40,17 @@ public class AlertaRestController {
         return ResponseEntity.ok(Map.of("message", "Alerta confirmado com sucesso"));
     }
 
+    /** POST /api/alertas/{id}/denunciar — Body: { "categoria": "...", "justificativa": "..." }. */
     @PostMapping("/{id}/denunciar")
-    public ResponseEntity<Map<String, Object>> denunciarAlerta(@PathVariable Long id) {
-        alertaService.denunciarAlerta(id);
-        return ResponseEntity.ok(Map.of("message", "Alerta denunciado com sucesso"));
+    public ResponseEntity<Map<String, Object>> denunciarAlerta(@PathVariable Long id,
+                                                              @RequestBody DenunciaAlertaRequestDTO body,
+                                                              Authentication authentication) {
+        try {
+            alertaService.denunciarAlerta(id, authentication.getName(), body.categoria(), body.justificativa());
+            return ResponseEntity.ok(Map.of("message", "Denúncia registrada com sucesso! A administração irá analisar."));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     /** POST /api/alertas/{id}/reagir — LIKE ou DISLIKE (toggle: mesmo tipo remove a reação). */

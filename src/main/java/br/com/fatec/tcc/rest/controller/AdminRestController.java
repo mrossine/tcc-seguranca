@@ -1,8 +1,10 @@
 package br.com.fatec.tcc.rest.controller;
 
 import br.com.fatec.tcc.dto.DenunciaAdminDTO;
+import br.com.fatec.tcc.dto.DenunciaAlertaAdminDTO;
 import br.com.fatec.tcc.dto.UsuarioAdminDTO;
 import br.com.fatec.tcc.model.Usuario;
+import br.com.fatec.tcc.service.AlertaService;
 import br.com.fatec.tcc.service.CaronaService;
 import br.com.fatec.tcc.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class AdminRestController {
 
     private final UsuarioService usuarioService;
     private final CaronaService caronaService;
+    private final AlertaService alertaService;
     private final JdbcTemplate jdbcTemplate;
 
     // 1. Listar todos os usuários — retorna UsuarioAdminDTO com ID incluído
@@ -78,6 +81,24 @@ public class AdminRestController {
                                                      @RequestBody Map<String, String> body) {
         try {
             caronaService.atualizarStatusDenuncia(id, body.get("status"));
+            return ResponseEntity.ok().body(Map.of("message", "Status atualizado com sucesso"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // 6. Listar denúncias de ALERTAS (categoria separada das de carona)
+    @GetMapping("/denuncias-alertas")
+    public List<DenunciaAlertaAdminDTO> listarDenunciasAlertas(@RequestParam(required = false) String status) {
+        return alertaService.listarDenunciasAlerta(status);
+    }
+
+    // 7. Atualizar o status de uma denúncia de alerta
+    @PutMapping("/denuncias-alertas/{id}/status")
+    public ResponseEntity<?> atualizarStatusDenunciaAlerta(@PathVariable Long id,
+                                                           @RequestBody Map<String, String> body) {
+        try {
+            alertaService.atualizarStatusDenunciaAlerta(id, body.get("status"));
             return ResponseEntity.ok().body(Map.of("message", "Status atualizado com sucesso"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

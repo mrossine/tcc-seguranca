@@ -29,5 +29,7 @@ public record UsuarioDTO(
 
     Usuario.Periodo periodo,
 
+    Usuario.TipoUsuario tipoUsuario,
+
     String fotoPerfil
 ) {}

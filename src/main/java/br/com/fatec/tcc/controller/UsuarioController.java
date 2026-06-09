@@ -63,4 +63,11 @@ public class UsuarioController {
         return caronaService.listarCaronasPorUsuario(usuario);
     }
 
+    @GetMapping("/historico/caronas-passageiro")
+    @ResponseBody
+    public List<CaronaResponseDTO> historicoCaronasPassageiro(Authentication auth) {
+        Usuario usuario = usuarioService.findUserByUsername(auth.getName());
+        return caronaService.listarCaronasComoPassageiro(usuario);
+    }
+
 }

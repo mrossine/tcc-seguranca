@@ -20,5 +20,11 @@ public record AlertaResponseDTO(
     Boolean podeExcluir,
 
     /** Indica se o alerta foi criado pelo usuário logado (para os filtros "minhas"). */
-    Boolean meuAlerta
+    Boolean meuAlerta,
+
+    /** Total de reações positivas (usado para ordenação na tela). */
+    Long likes,
+
+    /** Total de reações negativas (alertas com mais dislikes caem no ranking). */
+    Long dislikes
 ) {}

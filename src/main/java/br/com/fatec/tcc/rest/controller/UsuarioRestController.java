@@ -57,6 +57,7 @@ public class UsuarioRestController {
                 usuario.getMatricula(),
                 usuario.getCurso(),
                 usuario.getPeriodo(),
+                usuario.getTipoUsuario(),
                 usuario.getFotoPerfil()
         );
         usuarioService.atualizarPerfil(usuario.getId(), dto);

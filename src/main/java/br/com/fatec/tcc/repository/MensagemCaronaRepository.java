@@ -14,4 +14,7 @@ public interface MensagemCaronaRepository extends JpaRepository<MensagemCarona, 
     List<MensagemCarona> findByCaronaIdAndLidoFalseAndRemetenteIdNot(Long caronaId, Long usuarioId);
 
     long countByCaronaIdAndLidoFalseAndRemetenteIdNot(Long caronaId, Long usuarioId);
+
+    /** Remove todas as mensagens de uma carona (usado ao excluir a carona). */
+    void deleteByCaronaId(Long caronaId);
 }

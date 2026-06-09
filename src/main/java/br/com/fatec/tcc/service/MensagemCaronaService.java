@@ -64,6 +64,21 @@ public class MensagemCaronaService {
     }
 
     /**
+     * Persiste uma mensagem automática do sistema (ex.: avisos de entrada na carona).
+     * O remetente é apenas uma referência (não há checagem de permissão).
+     */
+    @Transactional
+    public void enviarMensagemSistema(Carona carona, Usuario referencia, String conteudo) {
+        MensagemCarona msg = new MensagemCarona();
+        msg.setCarona(carona);
+        msg.setRemetente(referencia);
+        msg.setConteudo(conteudo);
+        msg.setLido(false);
+        msg.setSistema(true);
+        mensagemRepository.save(msg);
+    }
+
+    /**
      * Lista todas as mensagens da carona em ordem cronológica.
      * Marca como lidas as mensagens não lidas de outros remetentes.
      */

@@ -65,6 +65,7 @@ public class UsuarioService implements UserDetailsService {
         usuario.setMatricula(usuarioDTO.matricula());
         usuario.setCurso(usuarioDTO.curso());
         usuario.setPeriodo(usuarioDTO.periodo());
+        usuario.setTipoUsuario(usuarioDTO.tipoUsuario());
         usuario.setAtivo(true);
         usuario.setRole(Usuario.Role.USER);
 
@@ -165,7 +166,59 @@ public class UsuarioService implements UserDetailsService {
                 u.getMatricula(),
                 u.getCurso(),
                 u.getPeriodo(),
+                u.getTipoUsuario(),
                 u.getFotoPerfil()
         );
+    }
+
+    // Regra de validade do aluno (5 anos a partir do ano de ingresso na matrícula)
+
+    /** Tempo máximo, em anos, que um aluno pode permanecer ativo (duração máxima dos cursos da Fatec). */
+    private static final int ANOS_MAX_ALUNO = 5;
+
+    /**
+     * Extrai o ano de ingresso da matrícula procurando um ano plausível (20xx).
+     * Retorna null quando não é possível determinar (ex.: matrículas sem ano).
+     */
+    public static Integer extrairAnoIngresso(String matricula) {
+        if (matricula == null) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(20\\d{2})").matcher(matricula);
+        int anoAtual = java.time.Year.now().getValue();
+        while (m.find()) {
+            int ano = Integer.parseInt(m.group(1));
+            if (ano >= 2000 && ano <= anoAtual) {
+                return ano;
+            }
+        }
+        return null;
+    }
+
+    /** Indica se um aluno já ultrapassou o tempo máximo de 5 anos desde o ingresso. */
+    public static boolean alunoExpirado(Usuario u) {
+        if (u.getTipoUsuario() != Usuario.TipoUsuario.ALUNO) return false;
+        if (u.getRole() == Usuario.Role.ADMIN || u.getRole() == Usuario.Role.MODERATOR) return false;
+        Integer anoIngresso = extrairAnoIngresso(u.getMatricula());
+        if (anoIngresso == null) return false;
+        return (java.time.Year.now().getValue() - anoIngresso) > ANOS_MAX_ALUNO;
+    }
+
+    /**
+     * Desativa todos os alunos cujo prazo de 5 anos expirou (não poderão mais logar).
+     * Retorna quantos foram desativados.
+     */
+    @Transactional
+    public int desativarAlunosExpirados() {
+        List<Usuario> ativos = usuarioRepository.findAll().stream()
+                .filter(u -> Boolean.TRUE.equals(u.getAtivo()))
+                .filter(UsuarioService::alunoExpirado)
+                .collect(Collectors.toList());
+        for (Usuario u : ativos) {
+            u.setAtivo(false);
+        }
+        if (!ativos.isEmpty()) {
+            usuarioRepository.saveAll(ativos);
+            log.info("Desativados {} aluno(s) por excederem o prazo de {} anos", ativos.size(), ANOS_MAX_ALUNO);
+        }
+        return ativos.size();
     }
 }

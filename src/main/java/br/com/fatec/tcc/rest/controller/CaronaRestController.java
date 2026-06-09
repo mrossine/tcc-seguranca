@@ -151,6 +151,19 @@ public class CaronaRestController {
         return caronaService.listarPassageirosConfirmados(id, auth.getName());
     }
 
+    /**
+     * GET /api/caronas/{id}/participantes
+     * Lista o motorista e os passageiros confirmados — apenas para quem participa (confirmado).
+     */
+    @GetMapping("/{id}/participantes")
+    public ResponseEntity<?> listarParticipantes(@PathVariable Long id, Authentication auth) {
+        try {
+            return ResponseEntity.ok(caronaService.listarParticipantes(id, auth.getName()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     /** PUT /api/caronas/{id}/finalizar-manual — motorista encerra do qualquer status não-terminal. */
     @PutMapping("/{id}/finalizar-manual")
     public ResponseEntity<Map<String, Object>> finalizarManual(@PathVariable Long id, Authentication auth) {

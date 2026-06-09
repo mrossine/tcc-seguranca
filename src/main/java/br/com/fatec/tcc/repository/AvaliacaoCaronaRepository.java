@@ -25,4 +25,7 @@ public interface AvaliacaoCaronaRepository extends JpaRepository<AvaliacaoCarona
 
     /** Total de avaliações recebidas pelo motorista */
     long countByMotorista(Usuario motorista);
+
+    /** Remove todas as avaliações de uma carona (usado ao excluir a carona). */
+    void deleteByCarona(Carona carona);
 }

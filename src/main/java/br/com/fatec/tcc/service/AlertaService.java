@@ -2,11 +2,14 @@ package br.com.fatec.tcc.service;
 
 import br.com.fatec.tcc.dto.AlertaRequestDTO;
 import br.com.fatec.tcc.dto.AlertaResponseDTO;
+import br.com.fatec.tcc.dto.DenunciaAlertaAdminDTO;
 import br.com.fatec.tcc.model.Alerta;
 import br.com.fatec.tcc.model.AlertaReacao;
+import br.com.fatec.tcc.model.DenunciaAlerta;
 import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.repository.AlertaReacaoRepository;
 import br.com.fatec.tcc.repository.AlertaRepository;
+import br.com.fatec.tcc.repository.DenunciaAlertaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,7 @@ public class AlertaService {
 
     private final AlertaRepository alertaRepository;
     private final AlertaReacaoRepository reacaoRepository;
+    private final DenunciaAlertaRepository denunciaAlertaRepository;
     private final UsuarioService usuarioService;
 
     /**
@@ -84,19 +88,114 @@ public class AlertaService {
     }
 
     /**
-     * Denuncia um alerta como falso/inadequado (ALTERAÇÃO).
-     * Incrementa o contador de denúncias e, ao atingir 5, marca como DENUNCIADO
-     * (o alerta deixa de aparecer na listagem pública).
+     * Denuncia um alerta como falso/inadequado, registrando categoria e justificativa.
+     *
+     * Cria uma DenunciaAlerta (visível ao admin), incrementa o contador de denúncias e,
+     * ao atingir 5, marca o alerta como DENUNCIADO (deixa de aparecer na listagem pública).
+     * Um usuário só pode denunciar o mesmo alerta uma vez.
      */
     @Transactional
-    public void denunciarAlerta(Long id) {
+    public void denunciarAlerta(Long id, String email, String categoriaStr, String justificativa) {
         Alerta alerta = alertaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        Usuario usuario = usuarioService.findUserByUsername(email);
+
+        DenunciaAlerta.CategoriaDenuncia categoria = parseCategoria(categoriaStr);
+        validarJustificativa(justificativa);
+
+        if (denunciaAlertaRepository.existsByAlertaAndDenunciante(alerta, usuario)) {
+            throw new RuntimeException("Você já denunciou este alerta.");
+        }
+
+        DenunciaAlerta denuncia = new DenunciaAlerta();
+        denuncia.setAlerta(alerta);
+        denuncia.setDenunciante(usuario);
+        denuncia.setCategoria(categoria);
+        denuncia.setJustificativa(justificativa.trim());
+        denuncia.setStatus(DenunciaAlerta.StatusDenuncia.PENDENTE);
+        denunciaAlertaRepository.save(denuncia);
+
         alerta.setDenuncias(alerta.getDenuncias() + 1);
         if (alerta.getDenuncias() >= 5) {
             alerta.setStatus(Alerta.StatusAlerta.DENUNCIADO);
         }
         alertaRepository.save(alerta);
+        log.info("Alerta {} denunciado por {} — categoria={}", id, email, categoria);
+    }
+
+    private DenunciaAlerta.CategoriaDenuncia parseCategoria(String categoria) {
+        if (categoria == null || categoria.isBlank()) {
+            throw new RuntimeException("Selecione o motivo da denúncia.");
+        }
+        try {
+            return DenunciaAlerta.CategoriaDenuncia.valueOf(categoria.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Motivo de denúncia inválido.");
+        }
+    }
+
+    private void validarJustificativa(String justificativa) {
+        if (justificativa == null || justificativa.trim().length() < 5) {
+            throw new RuntimeException("Descreva o motivo da denúncia com pelo menos 5 caracteres.");
+        }
+        if (justificativa.trim().length() > 1000) {
+            throw new RuntimeException("A justificativa não pode passar de 1000 caracteres.");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Denúncias de alerta — administração
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Lista todas as denúncias de alerta (opcionalmente filtradas por status) para o admin. */
+    public List<DenunciaAlertaAdminDTO> listarDenunciasAlerta(String statusFiltro) {
+        List<DenunciaAlerta> lista;
+        if (statusFiltro == null || statusFiltro.isBlank()) {
+            lista = denunciaAlertaRepository.findAllByOrderByDataDenunciaDesc();
+        } else {
+            DenunciaAlerta.StatusDenuncia status;
+            try {
+                status = DenunciaAlerta.StatusDenuncia.valueOf(statusFiltro.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Status inválido.");
+            }
+            lista = denunciaAlertaRepository.findByStatusOrderByDataDenunciaDesc(status);
+        }
+        return lista.stream().map(this::toDenunciaAlertaAdminDTO).collect(Collectors.toList());
+    }
+
+    /** Atualiza o status de uma denúncia de alerta (PENDENTE, EM_ANALISE, RESOLVIDA, ARQUIVADA). */
+    @Transactional
+    public void atualizarStatusDenunciaAlerta(Long denunciaId, String novoStatus) {
+        DenunciaAlerta d = denunciaAlertaRepository.findById(denunciaId)
+                .orElseThrow(() -> new RuntimeException("Denúncia não encontrada"));
+        if (novoStatus == null || novoStatus.isBlank()) {
+            throw new RuntimeException("Informe o novo status.");
+        }
+        try {
+            d.setStatus(DenunciaAlerta.StatusDenuncia.valueOf(novoStatus.trim().toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Status inválido.");
+        }
+        denunciaAlertaRepository.save(d);
+    }
+
+    private DenunciaAlertaAdminDTO toDenunciaAlertaAdminDTO(DenunciaAlerta d) {
+        Alerta a = d.getAlerta();
+        return new DenunciaAlertaAdminDTO(
+                d.getId(),
+                a.getId(),
+                a.getTitulo(),
+                a.getTipo() != null ? a.getTipo().name() : null,
+                a.getLocalizacao(),
+                a.getUsuario().getNomeCompleto(),
+                d.getDenunciante().getNomeCompleto(),
+                d.getDenunciante().getEmail(),
+                d.getCategoria().name(),
+                d.getJustificativa(),
+                d.getStatus().name(),
+                d.getDataDenuncia()
+        );
     }
 
     /**
@@ -115,6 +214,9 @@ public class AlertaService {
             usuario.getRole() != Usuario.Role.ADMIN) {
             throw new RuntimeException("Sem permissão para remover este alerta");
         }
+        // Remove os dependentes antes (reações e denúncias não têm cascade)
+        reacaoRepository.deleteByAlertaId(id);
+        denunciaAlertaRepository.deleteByAlerta(alerta);
         alertaRepository.delete(alerta);
     }
 
@@ -188,6 +290,8 @@ public class AlertaService {
                           usuarioLogado.getRole() == Usuario.Role.ADMIN ||
                           usuarioLogado.getRole() == Usuario.Role.MODERATOR;
         }
+        long likes    = reacaoRepository.countByAlertaIdAndTipo(alerta.getId(), AlertaReacao.TipoReacao.LIKE);
+        long dislikes = reacaoRepository.countByAlertaIdAndTipo(alerta.getId(), AlertaReacao.TipoReacao.DISLIKE);
         return new AlertaResponseDTO(
             alerta.getId(),
             alerta.getTitulo(),
@@ -203,7 +307,9 @@ public class AlertaService {
             alerta.getDenuncias(),
             alerta.getDataCriacao(),
             podeExcluir,
-            meuAlerta
+            meuAlerta,
+            likes,
+            dislikes
         );
     }
 }

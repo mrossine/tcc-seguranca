@@ -25,6 +25,7 @@ public class DataInitializer implements CommandLineRunner {
 			admin.setMatricula("ADMIN001");
 			admin.setCurso("Admininistrador");
 			admin.setPeriodo(Usuario.Periodo.MANHA);
+			admin.setTipoUsuario(Usuario.TipoUsuario.FUNCIONARIO);
 			admin.setRole(Usuario.Role.ADMIN);
 			admin.setAtivo(true);
 			usuarioRepository.save(admin);
@@ -40,6 +41,7 @@ public class DataInitializer implements CommandLineRunner {
 			moderador.setMatricula("MOD001");
 			moderador.setCurso("Moderador");
 			moderador.setPeriodo(Usuario.Periodo.TARDE);
+			moderador.setTipoUsuario(Usuario.TipoUsuario.FUNCIONARIO);
 			moderador.setRole(Usuario.Role.MODERATOR);
 			moderador.setAtivo(true);
 			usuarioRepository.save(moderador);

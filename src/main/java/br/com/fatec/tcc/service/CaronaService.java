@@ -20,6 +20,7 @@ import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.repository.AvaliacaoCaronaRepository;
 import br.com.fatec.tcc.repository.CaronaRepository;
 import br.com.fatec.tcc.repository.DenunciaCaronaRepository;
+import br.com.fatec.tcc.repository.MensagemCaronaRepository;
 import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -38,7 +39,9 @@ public class CaronaService {
     private final ParticipacaoCaronaRepository participacaoRepository;
     private final AvaliacaoCaronaRepository avaliacaoRepository;
     private final DenunciaCaronaRepository denunciaRepository;
+    private final MensagemCaronaRepository mensagemRepository;
     private final UsuarioService usuarioService;
+    private final MensagemCaronaService mensagemCaronaService;
 
     /**
      * Cria/oferece uma nova carona (INSERÇÃO).
@@ -97,8 +100,42 @@ public class CaronaService {
         List<Carona> todas = new java.util.ArrayList<>(abertas);
         todas.addAll(privadas);
         return todas.stream()
+                .filter(c -> caronaVisivelNaLista(c, usuarioLogado))
                 .map(c -> convertToResponseDTO(c, usuarioLogado))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Define se uma carona deve aparecer na listagem geral:
+     *  - ABERTA: visível a todos (já vem só de buscarCaronasDisponiveis);
+     *  - CHEIA/FECHADA/COMPLETADA: visível apenas aos participantes (já vem da consulta privada);
+     *  - CANCELADA: nunca aparece;
+     *  - FINALIZADA: aparece por até 72h após a finalização, e some assim que a pendência do
+     *    usuário acaba — passageiro deixa de ver após avaliar; motorista, após não ter mais o que
+     *    denunciar. Após 72h some para todos (a avaliação continua disponível pelo perfil).
+     */
+    private boolean caronaVisivelNaLista(Carona carona, Usuario usuarioLogado) {
+        Carona.StatusCarona status = carona.getStatus();
+        if (status == Carona.StatusCarona.CANCELADA) return false;
+        if (status != Carona.StatusCarona.FINALIZADA) return true;
+
+        LocalDateTime referencia = carona.getDataFinalizacao() != null
+                ? carona.getDataFinalizacao() : carona.getHorarioSaida();
+        if (referencia != null && referencia.isBefore(LocalDateTime.now().minusHours(72))) {
+            return false; // passou da janela de 72h
+        }
+
+        boolean ehMotorista = carona.getMotorista().getId().equals(usuarioLogado.getId());
+        if (ehMotorista) {
+            long confirmados = participacaoRepository.countByCaronaAndStatus(
+                    carona, ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
+            return confirmados > 0; // motorista vê enquanto pode denunciar passageiros
+        }
+        // Passageiro: vê enquanto ainda não avaliou
+        var optP = participacaoRepository.findByCaronaAndPassageiro(carona, usuarioLogado);
+        boolean confirmado = optP.isPresent()
+                && optP.get().getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA;
+        return confirmado && !avaliacaoRepository.existsByCaronaAndPassageiro(carona, usuarioLogado);
     }
 
     /**
@@ -156,6 +193,11 @@ public class CaronaService {
         participacao.setDataConfirmacao(LocalDateTime.now());
         participacaoRepository.save(participacao);
 
+        // Mensagem automática do sistema no chat avisando que o passageiro entrou
+        Usuario passageiro = participacao.getPassageiro();
+        mensagemCaronaService.enviarMensagemSistema(carona, passageiro,
+                passageiro.getNomeCompleto() + " entrou na carona.");
+
         // Verifica se todas as vagas foram preenchidas
         long totalConfirmados = participacaoRepository.countByCaronaAndStatus(carona,
                 ParticipacaoCarona.StatusParticipacao.CONFIRMADA);
@@ -201,6 +243,7 @@ public class CaronaService {
             throw new IllegalStateException("Carona já está finalizada ou cancelada");
         }
         carona.setStatus(Carona.StatusCarona.FINALIZADA);
+        carona.setDataFinalizacao(LocalDateTime.now());
         caronaRepository.save(carona);
     }
 
@@ -222,6 +265,7 @@ public class CaronaService {
             throw new RuntimeException("A carona só pode ser finalizada após o horário de início");
         }
         carona.setStatus(Carona.StatusCarona.FINALIZADA);
+        carona.setDataFinalizacao(LocalDateTime.now());
         caronaRepository.save(carona);
     }
 
@@ -264,7 +308,11 @@ public class CaronaService {
             throw new RuntimeException("Sem permissão para excluir esta carona");
         }
         if (isAdminOuModerador && !isMotorista) {
-            caronaRepository.delete(carona);
+            // Remove os registros dependentes antes (não há cascade nessas relações)
+            mensagemRepository.deleteByCaronaId(caronaId);
+            denunciaRepository.deleteByCarona(carona);
+            avaliacaoRepository.deleteByCarona(carona);
+            caronaRepository.delete(carona); // participações têm cascade ALL
             return;
         }
         // Motorista só pode cancelar se a carona ainda não começou
@@ -334,6 +382,45 @@ public class CaronaService {
                 .filter(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Indica se o usuário pode acessar o chat e os participantes da carona:
+     * é o motorista ou um passageiro CONFIRMADO. Usado para liberar a interface.
+     */
+    public boolean podeAcessarChat(Long caronaId, String email) {
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        Usuario usuario = usuarioService.findUserByUsername(email);
+        if (carona.getMotorista().getId().equals(usuario.getId())) return true;
+        return participacaoRepository.findByCaronaAndPassageiro(carona, usuario)
+                .map(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
+                .orElse(false);
+    }
+
+    /**
+     * Lista todos os participantes da carona (motorista + passageiros confirmados).
+     * Só acessível a quem participa da carona (motorista ou passageiro confirmado).
+     */
+    public List<ParticipacaoCaronaDTO> listarParticipantes(Long caronaId, String email) {
+        Carona carona = caronaRepository.findById(caronaId)
+                .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
+        if (!podeAcessarChat(caronaId, email)) {
+            throw new RuntimeException("Apenas participantes confirmados podem ver os participantes desta carona");
+        }
+        Usuario motorista = carona.getMotorista();
+        List<ParticipacaoCaronaDTO> lista = new java.util.ArrayList<>();
+        // Motorista aparece primeiro, com o status CONFIRMADA por convenção
+        lista.add(new ParticipacaoCaronaDTO(
+                null,
+                motorista.getNomeCompleto() + " (motorista)",
+                motorista.getEmail(),
+                ParticipacaoCarona.StatusParticipacao.CONFIRMADA));
+        participacaoRepository.findByCarona(carona).stream()
+                .filter(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
+                .map(this::convertToDTO)
+                .forEach(lista::add);
+        return lista;
     }
 
     /**
@@ -545,6 +632,17 @@ public class CaronaService {
                 .stream().map(p -> convertToResponseDTO(p.getCarona())).collect(Collectors.toList());
         oferecidas.addAll(solicitadas);
         return oferecidas;
+    }
+
+    /**
+     * Lista (CONSULTA) as caronas em que o usuário foi PASSAGEIRO confirmado.
+     * Usado no histórico do perfil para oferecer a avaliação das caronas finalizadas.
+     */
+    public List<CaronaResponseDTO> listarCaronasComoPassageiro(Usuario usuario) {
+        return participacaoRepository.findByPassageiroOrderByDataSolicitacaoDesc(usuario).stream()
+                .filter(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
+                .map(p -> convertToResponseDTO(p.getCarona(), usuario))
+                .collect(Collectors.toList());
     }
 
     /** Conversão simples (sem usuário logado): não calcula permissões de avaliar/denunciar. */

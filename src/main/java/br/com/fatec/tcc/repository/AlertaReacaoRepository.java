@@ -12,4 +12,7 @@ public interface AlertaReacaoRepository extends JpaRepository<AlertaReacao, Long
     Optional<AlertaReacao> findByAlertaIdAndUsuarioId(Long alertaId, Long usuarioId);
 
     long countByAlertaIdAndTipo(Long alertaId, AlertaReacao.TipoReacao tipo);
+
+    /** Remove todas as reações de um alerta (usado ao excluir o alerta). */
+    void deleteByAlertaId(Long alertaId);
 }

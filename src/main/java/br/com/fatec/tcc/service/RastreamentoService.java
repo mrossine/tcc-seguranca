@@ -141,6 +141,7 @@ public class RastreamentoService {
                 }
 
                 carona.setStatus(Carona.StatusCarona.FINALIZADA);
+                carona.setDataFinalizacao(java.time.LocalDateTime.now());
                 caronaRepository.save(carona);
                 log.info("Carona {} → FINALIZADA automaticamente após 10 minutos.", caronaId);
                 return null;

@@ -265,8 +265,9 @@
 		document.getElementById(cfg.validadoId).textContent = endereco;
 		document.getElementById(cfg.statusId).classList.remove('d-none');
 		const input = document.getElementById(cfg.inputId);
-		// Mantém o valor que o usuário digitou no input (para enviar ao form)
-		if (endereco && input.value.trim().length < 5) input.value = endereco;
+		// Usa o endereço validado selecionado (é o que será salvo na carona),
+		// e não o texto livre digitado pelo usuário.
+		if (endereco) input.value = endereco;
 	}
 	</script>
 </body>

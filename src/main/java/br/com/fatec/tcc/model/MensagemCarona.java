@@ -43,4 +43,7 @@ public class MensagemCarona {
 
     /** Indica se o destinatário já leu a mensagem. */
     private Boolean lido = false;
+
+    /** Mensagem gerada automaticamente pelo sistema (ex.: "Fulano entrou na carona"). */
+    private Boolean sistema = false;
 }

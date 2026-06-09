@@ -46,7 +46,12 @@ public class Usuario implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "varchar(10)")
     private Periodo periodo;
-    
+
+    /** Classificação do usuário na instituição (aluno, docente ou funcionário). */
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(15)")
+    private TipoUsuario tipoUsuario;
+
     private String fotoPerfil;
     
     @CreatedDate
@@ -104,6 +109,10 @@ public class Usuario implements UserDetails {
     
     public enum Periodo {
         MANHA, TARDE, NOITE
+    }
+
+    public enum TipoUsuario {
+        ALUNO, DOCENTE, FUNCIONARIO
     }
     
     public enum Role {

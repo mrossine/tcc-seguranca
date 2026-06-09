@@ -138,6 +138,16 @@
 							</select>
 						</div>
 						<div class="mb-3">
+							<label class="form-label">Você é</label>
+							<select class="form-select" name="tipoUsuario" required>
+								<option value="">Selecione</option>
+								<option value="ALUNO">Aluno</option>
+								<option value="DOCENTE">Docente</option>
+								<option value="FUNCIONARIO">Funcionário</option>
+							</select>
+							<small class="text-muted">Alunos têm acesso por até 5 anos a partir do ingresso.</small>
+						</div>
+						<div class="mb-3">
 							<label class="form-label">Senha</label>
 							<input type="password" class="form-control" id="senha" name="senha" required minlength="6">
 							<div class="password-strength">
@@ -236,6 +246,7 @@
 			matricula: form.matricula.value,
 			curso: form.curso.value,
 			periodo: form.periodo.value,
+			tipoUsuario: form.tipoUsuario.value,
 			senha: form.senha.value,
 			confirmarSenha: form.confirmarSenha.value
 		};

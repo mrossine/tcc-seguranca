@@ -46,13 +46,6 @@ public class AlertaController {
         return "redirect:/alertas";
     }
 
-    /** POST /alertas/{id}/denunciar — registra denúncia de alerta falso/inadequado. */
-    @PostMapping("/{id}/denunciar")
-    public String denunciarAlerta(@PathVariable Long id) {
-        alertaService.denunciarAlerta(id);
-        return "redirect:/alertas";
-    }
-
     /** POST /alertas/{id}/remover — remove o alerta (se o usuário tiver permissão). */
     @PostMapping("/{id}/remover")
     public String removerAlerta(@PathVariable Long id, Authentication auth) {

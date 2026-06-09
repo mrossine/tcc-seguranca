@@ -66,6 +66,12 @@
 			color: white;
 			border-radius: 10px;
 		}
+		.star-rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; }
+		.star-rating input { display: none; }
+		.star-rating label { font-size: 2rem; color: #ccc; cursor: pointer; transition: color 0.2s; }
+		.star-rating input:checked ~ label,
+		.star-rating label:hover,
+		.star-rating label:hover ~ label { color: #ffc107; }
 	</style>
 </head>
 <body>
@@ -194,18 +200,67 @@
 
 						<!-- Histórico -->
 						<div class="tab-pane fade" id="historico">
+							<div class="mb-3" style="max-width: 260px;">
+								<label class="form-label small fw-bold"><i class="bi bi-funnel"></i> Período</label>
+								<select id="filtroPeriodo" class="form-select form-select-sm" onchange="filtrarPeriodo()">
+									<option value="7">Últimos 7 dias</option>
+									<option value="14">Últimos 14 dias</option>
+									<option value="30" selected>Últimos 30 dias</option>
+									<option value="60">Últimos 60 dias</option>
+									<option value="90">Últimos 90 dias</option>
+									<option value="0">Todo o período</option>
+								</select>
+							</div>
 							<h5>Meus Alertas</h5>
-							<div id="meusAlertas" class="mb-4">
+							<div id="meusAlertas" class="mb-2">
 								<p class="text-muted">Carregando...</p>
 							</div>
+							<nav id="pagAlertas" class="d-flex justify-content-center mb-4"></nav>
 							<hr>
-							<h5>Minhas Caronas</h5>
-							<div id="minhasCaronas">
+							<h5>Minhas Caronas (como motorista)</h5>
+							<div id="minhasCaronas" class="mb-2">
 								<p class="text-muted">Carregando...</p>
 							</div>
+							<nav id="pagMinhas" class="d-flex justify-content-center mb-4"></nav>
+							<hr>
+							<h5>Caronas como Passageiro</h5>
+							<div id="caronasPassageiro" class="mb-2">
+								<p class="text-muted">Carregando...</p>
+							</div>
+							<nav id="pagPassageiro" class="d-flex justify-content-center"></nav>
 						</div>
 					</div>
 				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Modal Avaliar Carona -->
+<div class="modal fade" id="modalAvaliar" tabindex="-1">
+	<div class="modal-dialog modal-sm">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><i class="bi bi-star-fill text-warning"></i> Avaliar Carona</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+			</div>
+			<div class="modal-body text-center">
+				<p class="text-muted small mb-3">Como foi a experiência com o motorista?</p>
+				<div class="star-rating mb-3" id="starContainer">
+					<input type="radio" id="ps5" name="estrelas" value="5"><label for="ps5">★</label>
+					<input type="radio" id="ps4" name="estrelas" value="4"><label for="ps4">★</label>
+					<input type="radio" id="ps3" name="estrelas" value="3"><label for="ps3">★</label>
+					<input type="radio" id="ps2" name="estrelas" value="2"><label for="ps2">★</label>
+					<input type="radio" id="ps1" name="estrelas" value="1"><label for="ps1">★</label>
+				</div>
+				<textarea id="comentarioAvaliacao" class="form-control form-control-sm" rows="2"
+				          placeholder="Comentário opcional..." maxlength="500"></textarea>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+				<button type="button" class="btn btn-warning btn-sm" onclick="enviarAvaliacao()">
+					<i class="bi bi-send"></i> Enviar
+				</button>
 			</div>
 		</div>
 	</div>
@@ -224,40 +279,143 @@
 		}
 	});
 
-	// Carregar histórico
-	fetch('/perfil/historico/alertas')
+	// ── Histórico com filtro de período e paginação (3 por seção) ──────────────
+	const PAGE_SIZE = 3;
+	let dadosAlertas = [], dadosMotorista = [], dadosPassageiro = [];
+	let pagina = { alertas: 1, motorista: 1, passageiro: 1 };
+
+	function dentroPeriodo(dateStr) {
+		const dias = parseInt(document.getElementById('filtroPeriodo').value);
+		if (!dias) return true;                       // "Todo o período"
+		if (!dateStr) return true;
+		const limite = Date.now() - dias * 24 * 60 * 60 * 1000;
+		return new Date(dateStr).getTime() >= limite;
+	}
+
+	function renderAlerta(a) {
+		return `
+            <div class="card mb-2"><div class="card-body py-2">
+                <strong>${a.titulo || 'Sem título'}</strong>
+                <small class="text-muted float-end">${new Date(a.dataCriacao).toLocaleDateString()}</small>
+                <p class="mb-0 small">${a.descricao || ''}</p>
+            </div></div>`;
+	}
+
+	function renderCaronaMotorista(c) {
+		return `
+            <div class="card mb-2"><div class="card-body py-2">
+                <strong>${c.origem} → ${c.destino}</strong>
+                <small class="text-muted float-end">${new Date(c.horarioSaida).toLocaleDateString()}</small>
+                <p class="mb-0 small">Status: ${c.status}</p>
+            </div></div>`;
+	}
+
+	function renderCaronaPassageiro(c) {
+		const botaoAvaliar = c.podeAvaliar
+			? `<button class="btn btn-warning btn-sm" onclick="abrirAvaliar(${c.id})"><i class="bi bi-star-fill"></i> Avaliar</button>`
+			: (c.status === 'FINALIZADA'
+				? '<span class="badge bg-success">Avaliada</span>'
+				: `<span class="badge bg-secondary">${c.status}</span>`);
+		return `
+            <div class="card mb-2"><div class="card-body py-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${c.origem} → ${c.destino}</strong>
+                    <div class="small text-muted">${new Date(c.horarioSaida).toLocaleDateString()} · Motorista: ${c.motoristaNome}</div>
+                </div>
+                <div>${botaoAvaliar}</div>
+            </div></div>`;
+	}
+
+	function renderSecao(chave, dados, getData, listId, pagId, renderItem, emptyMsg) {
+		const filtrados = (dados || []).filter(x => dentroPeriodo(getData(x)));
+		const totalPag = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
+		if (pagina[chave] > totalPag) pagina[chave] = totalPag;
+
+		const list = document.getElementById(listId);
+		const nav  = document.getElementById(pagId);
+		if (filtrados.length === 0) {
+			list.innerHTML = `<p class="text-muted">${emptyMsg}</p>`;
+			nav.innerHTML = '';
+			return;
+		}
+		const inicio = (pagina[chave] - 1) * PAGE_SIZE;
+		list.innerHTML = filtrados.slice(inicio, inicio + PAGE_SIZE).map(renderItem).join('');
+
+		if (totalPag <= 1) { nav.innerHTML = ''; return; }
+		nav.innerHTML = `
+			<ul class="pagination pagination-sm mb-0">
+				<li class="page-item ${pagina[chave] === 1 ? 'disabled' : ''}">
+					<button class="page-link" onclick="mudarPagina('${chave}', -1)">«</button></li>
+				<li class="page-item disabled"><span class="page-link">${pagina[chave]} / ${totalPag}</span></li>
+				<li class="page-item ${pagina[chave] === totalPag ? 'disabled' : ''}">
+					<button class="page-link" onclick="mudarPagina('${chave}', 1)">»</button></li>
+			</ul>`;
+	}
+
+	function renderTudo() {
+		renderSecao('alertas', dadosAlertas, a => a.dataCriacao,
+			'meusAlertas', 'pagAlertas', renderAlerta, 'Nenhum alerta no período.');
+		renderSecao('motorista', dadosMotorista, c => c.horarioSaida,
+			'minhasCaronas', 'pagMinhas', renderCaronaMotorista, 'Nenhuma carona no período.');
+		renderSecao('passageiro', dadosPassageiro, c => c.horarioSaida,
+			'caronasPassageiro', 'pagPassageiro', renderCaronaPassageiro, 'Nenhuma carona no período.');
+	}
+
+	function mudarPagina(chave, delta) {
+		pagina[chave] += delta;
+		renderTudo();
+	}
+
+	function filtrarPeriodo() {
+		pagina = { alertas: 1, motorista: 1, passageiro: 1 };
+		renderTudo();
+	}
+
+	function carregarCaronasPassageiro() {
+		return fetch('/perfil/historico/caronas-passageiro')
 			.then(res => res.json())
-			.then(alertas => {
-				const container = document.getElementById('meusAlertas');
-				if (!alertas.length) {
-					container.innerHTML = '<p class="text-muted">Nenhum alerta publicado.</p>';
-				} else {
-					container.innerHTML = alertas.map(a => `
-                        <div class="card mb-2"><div class="card-body py-2">
-                            <strong>${a.titulo}</strong>
-                            <small class="text-muted float-end">${new Date(a.dataCriacao).toLocaleDateString()}</small>
-                            <p class="mb-0 small">${a.descricao || ''}</p>
-                        </div></div>
-                    `).join('');
-				}
-			});
+			.then(caronas => { dadosPassageiro = caronas || []; renderTudo(); });
+	}
+
+	// Carregamento inicial
+	fetch('/perfil/historico/alertas')
+		.then(res => res.json())
+		.then(alertas => { dadosAlertas = alertas || []; renderTudo(); });
 
 	fetch('/perfil/historico/caronas')
-			.then(res => res.json())
-			.then(caronas => {
-				const container = document.getElementById('minhasCaronas');
-				if (!caronas.length) {
-					container.innerHTML = '<p class="text-muted">Nenhuma carona oferecida ou solicitada.</p>';
-				} else {
-					container.innerHTML = caronas.map(c => `
-                        <div class="card mb-2"><div class="card-body py-2">
-                            <strong>${c.origem} → ${c.destino}</strong>
-                            <small class="text-muted float-end">${new Date(c.horarioSaida).toLocaleDateString()}</small>
-                            <p class="mb-0 small">Status: ${c.status}</p>
-                        </div></div>
-                    `).join('');
-				}
-			});
+		.then(res => res.json())
+		.then(caronas => { dadosMotorista = caronas || []; renderTudo(); });
+
+	carregarCaronasPassageiro();
+
+	// ── Avaliação ────────────────────────────────────────────────────
+	let caronaIdAvaliar = null;
+	function abrirAvaliar(caronaId) {
+		caronaIdAvaliar = caronaId;
+		document.querySelectorAll('#starContainer input').forEach(r => r.checked = false);
+		document.getElementById('comentarioAvaliacao').value = '';
+		new bootstrap.Modal(document.getElementById('modalAvaliar')).show();
+	}
+
+	function enviarAvaliacao() {
+		const sel = document.querySelector('#starContainer input:checked');
+		if (!sel) { alert('Selecione uma nota de 1 a 5 estrelas.'); return; }
+		const estrelas = parseInt(sel.value);
+		const comentario = document.getElementById('comentarioAvaliacao').value.trim();
+		fetch(`/api/caronas/${caronaIdAvaliar}/avaliar`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ estrelas, comentario: comentario || null })
+		})
+		.then(res => res.json().then(data => ({ ok: res.ok, data })))
+		.then(({ ok, data }) => {
+			if (!ok) throw new Error(data.message || 'Erro ao avaliar.');
+			bootstrap.Modal.getInstance(document.getElementById('modalAvaliar')).hide();
+			alert(data.message || 'Avaliação enviada!');
+			carregarCaronasPassageiro();
+		})
+		.catch(err => alert('Erro: ' + err.message));
+	}
 </script>
 </body>
 </html>

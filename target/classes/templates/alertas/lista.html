@@ -207,13 +207,30 @@
 					</div>
 				</div>
 
-				<!-- Lista de Alertas -->
-				<div id="alertasContainer" class="row">
+				<!-- Carregando -->
+				<div id="loadingAlertas" class="row">
 					<div class="col-12 text-center py-5">
 						<div class="spinner-border text-primary" role="status">
 							<span class="visually-hidden">Carregando...</span>
 						</div>
 					</div>
+				</div>
+
+				<!-- Seção: alertas recentes (últimas 72h) -->
+				<div id="secaoRecentes" class="d-none">
+					<h4 class="mb-3"><i class="bi bi-stars text-warning"></i> Alertas Recentes <small class="text-muted">(últimas 72h)</small></h4>
+					<div id="alertasRecentesContainer" class="row"></div>
+				</div>
+
+				<!-- Seção: alertas anteriores -->
+				<div id="secaoAnteriores" class="d-none mt-2">
+					<h4 class="mb-3"><i class="bi bi-clock-history text-secondary"></i> Alertas Anteriores</h4>
+					<div id="alertasAnterioresContainer" class="row"></div>
+				</div>
+
+				<!-- Nenhum alerta -->
+				<div id="semAlertas" class="d-none">
+					<div class="alert alert-info text-center">Nenhum alerta encontrado.</div>
 				</div>
 			</div>
 		</div>
@@ -233,6 +250,47 @@
 				<div class="modal-footer">
 					<small class="text-muted me-auto"><i class="bi bi-info-circle"></i> Mapa via OpenStreetMap</small>
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal Denunciar Alerta -->
+	<div class="modal fade" id="modalDenuncia" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title"><i class="bi bi-flag-fill text-danger"></i> Denunciar Alerta</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<div class="alert alert-light border small mb-3">
+						<i class="bi bi-info-circle"></i> Use a denúncia para reportar conteúdo falso, ofensivo ou inadequado.
+						A administração irá analisar.
+					</div>
+					<div class="mb-3">
+						<label class="form-label">Motivo</label>
+						<select id="denunciaCategoria" class="form-select form-select-sm">
+							<option value="">Selecione...</option>
+							<option value="CONTEUDO_FALSO">Conteúdo falso</option>
+							<option value="CONTEUDO_OFENSIVO">Conteúdo ofensivo</option>
+							<option value="SPAM">Spam</option>
+							<option value="LOCAL_INCORRETO">Localização incorreta</option>
+							<option value="OUTRO">Outro</option>
+						</select>
+					</div>
+					<div class="mb-1">
+						<label class="form-label">Justificativa</label>
+						<textarea id="denunciaJustificativa" class="form-control form-control-sm" rows="4"
+						          maxlength="1000" placeholder="Explique o motivo da denúncia..."></textarea>
+					</div>
+					<small class="text-muted">Mínimo de 5 caracteres.</small>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-danger btn-sm" onclick="enviarDenuncia()">
+						<i class="bi bi-send"></i> Enviar Denúncia
+					</button>
 				</div>
 			</div>
 		</div>
@@ -269,8 +327,10 @@
                 })
                 .catch(error => {
                     console.error('Erro ao carregar alertas:', error);
-                    document.getElementById('alertasContainer').innerHTML =
-                        '<div class="col-12"><div class="alert alert-danger">Erro ao carregar alertas</div></div>';
+                    document.getElementById('loadingAlertas').classList.add('d-none');
+                    document.getElementById('semAlertas').classList.remove('d-none');
+                    document.getElementById('semAlertas').innerHTML =
+                        '<div class="alert alert-danger text-center">Erro ao carregar alertas</div>';
                 });
         }
 
@@ -314,14 +374,50 @@
             if (apenasMeus)       filtrados = filtrados.filter(a => a.meuAlerta);
             else if (ocultarMeus) filtrados = filtrados.filter(a => !a.meuAlerta);
 
-            const container = document.getElementById('alertasContainer');
+            document.getElementById('loadingAlertas').classList.add('d-none');
+            const secaoRecentes  = document.getElementById('secaoRecentes');
+            const secaoAnteriores = document.getElementById('secaoAnteriores');
+            const semAlertas      = document.getElementById('semAlertas');
+
             if (filtrados.length === 0) {
-                container.innerHTML =
-                    '<div class="col-12"><div class="alert alert-info text-center">Nenhum alerta encontrado.</div></div>';
+                secaoRecentes.classList.add('d-none');
+                secaoAnteriores.classList.add('d-none');
+                semAlertas.classList.remove('d-none');
                 return;
             }
+            semAlertas.classList.add('d-none');
 
-            container.innerHTML = filtrados.map(alerta => `
+            // Pontuação líquida: likes - dislikes (mais positivos primeiro, negativos ao fim)
+            const score = a => (a.likes || 0) - (a.dislikes || 0);
+            const ordenar = lista => lista.slice().sort((a, b) =>
+                score(b) - score(a) || new Date(b.dataHora) - new Date(a.dataHora));
+
+            // Divide entre recentes (≤ 72h) e anteriores, com base na data do ocorrido
+            const limite72h = Date.now() - 72 * 60 * 60 * 1000;
+            const recentes   = ordenar(filtrados.filter(a => new Date(a.dataHora).getTime() >= limite72h));
+            const anteriores = ordenar(filtrados.filter(a => new Date(a.dataHora).getTime() <  limite72h));
+
+            const recentesContainer   = document.getElementById('alertasRecentesContainer');
+            const anterioresContainer  = document.getElementById('alertasAnterioresContainer');
+
+            if (recentes.length > 0) {
+                recentesContainer.innerHTML = recentes.map(renderCard).join('');
+                secaoRecentes.classList.remove('d-none');
+            } else {
+                recentesContainer.innerHTML = '';
+                secaoRecentes.classList.add('d-none');
+            }
+            if (anteriores.length > 0) {
+                anterioresContainer.innerHTML = anteriores.map(renderCard).join('');
+                secaoAnteriores.classList.remove('d-none');
+            } else {
+                anterioresContainer.innerHTML = '';
+                secaoAnteriores.classList.add('d-none');
+            }
+        }
+
+        function renderCard(alerta) {
+            return `
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card alert-card h-100">
                         <div class="card-body">
@@ -353,14 +449,14 @@
                                     data-alerta-id="${alerta.id}"
                                     data-tipo="LIKE"
                                     title="Confirmar alerta como verdadeiro">
-                                    👍 <span class="contador-like" id="like-${alerta.id}">0</span>
+                                    👍 <span class="contador-like" id="like-${alerta.id}">${alerta.likes || 0}</span>
                                 </button>
                                 <button
                                     class="btn-reacao btn-reacao-dislike"
                                     data-alerta-id="${alerta.id}"
                                     data-tipo="DISLIKE"
                                     title="Marcar alerta como falso ou impreciso">
-                                    👎 <span class="contador-dislike" id="dislike-${alerta.id}">0</span>
+                                    👎 <span class="contador-dislike" id="dislike-${alerta.id}">${alerta.dislikes || 0}</span>
                                 </button>
                                 <button
                                     onclick="denunciarAlerta(${alerta.id})"
@@ -389,7 +485,7 @@
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `;
         }
 
         // Mantém os dois checkboxes mutuamente exclusivos e reaplica os filtros
@@ -430,20 +526,35 @@
             }
         }
 
-        // FIX 3: Denunciar alerta com CSRF token
+        // Denúncia de alerta com justificativa (modal) — vai para a tela do admin
+        let denunciaAlertaId = null;
+
         function denunciarAlerta(id) {
-            if (confirm('Denunciar este alerta como falso ou inadequado?')) {
-                postComCsrf(`/alertas/${id}/denunciar`)
-                    .then(response => {
-                        if (response.ok) {
-                            mostrarToast('Alerta denunciado. Obrigado pela contribuição!', 'warning');
-                            carregarAlertas();
-                        } else {
-                            mostrarToast('Erro ao denunciar alerta. Tente novamente.', 'danger');
-                        }
-                    })
-                    .catch(() => mostrarToast('Erro de conexão ao denunciar alerta.', 'danger'));
-            }
+            denunciaAlertaId = id;
+            document.getElementById('denunciaCategoria').value = '';
+            document.getElementById('denunciaJustificativa').value = '';
+            new bootstrap.Modal(document.getElementById('modalDenuncia')).show();
+        }
+
+        function enviarDenuncia() {
+            const categoria = document.getElementById('denunciaCategoria').value;
+            const justificativa = document.getElementById('denunciaJustificativa').value.trim();
+            if (!categoria) { mostrarToast('Selecione o motivo da denúncia.', 'warning'); return; }
+            if (justificativa.length < 5) { mostrarToast('Descreva o motivo com pelo menos 5 caracteres.', 'warning'); return; }
+
+            fetch(`/api/alertas/${denunciaAlertaId}/denunciar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categoria, justificativa })
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok) throw new Error(data.message || 'Erro ao enviar denúncia.');
+                bootstrap.Modal.getInstance(document.getElementById('modalDenuncia')).hide();
+                mostrarToast(data.message || 'Denúncia registrada!', 'success');
+                carregarAlertas();
+            })
+            .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
         }
 
         // Excluir alerta via DELETE /api/alertas/{id}

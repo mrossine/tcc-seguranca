@@ -54,7 +54,10 @@ public class Carona {
     
     @CreatedDate
     private LocalDateTime dataCriacao;
-    
+
+    /** Momento em que a carona foi finalizada — usado para a janela de 72h na listagem. */
+    private LocalDateTime dataFinalizacao;
+
     @OneToMany(mappedBy = "carona", cascade = CascadeType.ALL)
     private List<ParticipacaoCarona> participacoes;
     

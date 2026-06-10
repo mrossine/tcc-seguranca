@@ -1,22 +1,21 @@
 package br.com.fatec.tcc.rest.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Controller responsável por fazer o reverse geocoding no servidor.
@@ -24,13 +23,14 @@ import java.util.regex.Pattern;
 @Slf4j
 @RestController
 @RequestMapping("/api/geocoding")
+@RequiredArgsConstructor
 public class GeocodingController {
 
-    private static final String NOMINATIM_URL =
-            "https://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s&zoom=18&addressdetails=1&accept-language=pt-BR";
+    private static final String NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
+    // User-Agent obrigatório pela Nominatim Usage Policy
+    private static final String USER_AGENT = "SegurancaFatecZL/1.0 (tcc-fatec-zl; contato@fatec.sp.gov.br)";
 
-    private static final String NOMINATIM_SEARCH_URL =
-            "https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1&addressdetails=1&accept-language=pt-BR";
+    private final RestTemplate restTemplate;
 
     /**
      * Recebe latitude e longitude e retorna o endereço textual.
@@ -42,86 +42,31 @@ public class GeocodingController {
             @RequestParam double lng) {
 
         Map<String, String> resultado = new HashMap<>();
-
         try {
-            String urlStr = String.format(NOMINATIM_URL, lat, lng);
-            URL url = new URL(urlStr);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            // User-Agent obrigatório pelo Nominatim Usage Policy
-            conn.setRequestProperty("User-Agent",
-                    "SegurancaFatecZL/1.0 (tcc-fatec-zl; contato@fatec.sp.gov.br)");
-            conn.setRequestProperty("Accept-Language", "pt-BR,pt;q=0.9");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(8000);
+            String url = UriComponentsBuilder.fromHttpUrl(NOMINATIM_BASE + "/reverse")
+                    .queryParam("format", "json")
+                    .queryParam("lat", lat)
+                    .queryParam("lon", lng)
+                    .queryParam("zoom", 18)
+                    .queryParam("addressdetails", 1)
+                    .queryParam("accept-language", "pt-BR")
+                    .toUriString();
 
-            int status = conn.getResponseCode();
-            if (status != 200) {
-                log.warn("Nominatim retornou status {}", status);
+            HttpHeaders headers = nominatimHeaders();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), Map.class).getBody();
+
+            if (response == null) {
                 resultado.put("endereco", null);
                 return ResponseEntity.ok(resultado);
             }
 
-            // Lê a resposta JSON como String
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
-            }
-
-            String json = sb.toString();
-            log.debug("Nominatim response: {}", json);
-
-            // Extrai campos do JSON manualmente (sem dependência extra)
-            String road      = extrairCampo(json, "road", "pedestrian", "path", "footway");
-            String houseNum  = extrairValor(json, "house_number");
-            String suburb    = extrairCampo(json, "suburb", "neighbourhood", "district", "quarter");
-            String city      = extrairCampo(json, "city", "town", "village", "municipality");
-            String stateCode = extrairValor(json, "state_code");
-            String state     = extrairValor(json, "state");
-
-            String uf = (stateCode != null && !stateCode.isEmpty()) ? stateCode : state;
-
-            // Monta o endereço: "Rua X, 123, Bairro - Cidade/UF"
-            StringBuilder endereco = new StringBuilder();
-            if (road != null && !road.isEmpty()) {
-                endereco.append(road);
-                if (houseNum != null && !houseNum.isEmpty()) {
-                    endereco.append(", ").append(houseNum);
-                }
-            }
-            if (suburb != null && !suburb.isEmpty()) {
-                if (endereco.length() > 0) endereco.append(", ");
-                endereco.append(suburb);
-            }
-            if (city != null && !city.isEmpty()) {
-                if (endereco.length() > 0) endereco.append(" - ");
-                endereco.append(city);
-                if (uf != null && !uf.isEmpty()) {
-                    endereco.append("/").append(uf);
-                }
-            }
-
-            // Fallback: pega display_name se não conseguiu montar
-            if (endereco.length() == 0) {
-                String displayName = extrairValor(json, "display_name");
-                if (displayName != null && !displayName.isEmpty()) {
-                    // Pega apenas as primeiras partes do display_name
-                    String[] partes = displayName.split(",");
-                    StringBuilder fallback = new StringBuilder();
-                    for (int i = 0; i < Math.min(3, partes.length); i++) {
-                        if (fallback.length() > 0) fallback.append(",");
-                        fallback.append(partes[i].trim());
-                    }
-                    endereco.append(fallback);
-                }
-            }
-
-            resultado.put("endereco", endereco.length() > 0 ? endereco.toString() : null);
-            log.info("Geocoding lat={} lng={} -> {}", lat, lng, resultado.get("endereco"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> address = (Map<String, Object>) response.get("address");
+            String endereco = montarEndereco(address, response);
+            resultado.put("endereco", endereco);
+            log.debug("Reverse geocoding concluído para lat={} lng={}", lat, lng);
             return ResponseEntity.ok(resultado);
 
         } catch (Exception e) {
@@ -138,51 +83,40 @@ public class GeocodingController {
      */
     @GetMapping("/geocodificar")
     public ResponseEntity<Map<String, Object>> geocodificar(@RequestParam String endereco) {
-        Map<String, Object> resultado = new HashMap<>();
         try {
-            String encoded = URLEncoder.encode(endereco, StandardCharsets.UTF_8);
-            String urlStr = String.format(NOMINATIM_SEARCH_URL, encoded);
-            URL url = new URL(urlStr);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "SegurancaFatecZL/1.0 (tcc-fatec-zl; contato@fatec.sp.gov.br)");
-            conn.setRequestProperty("Accept-Language", "pt-BR,pt;q=0.9");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(8000);
+            String url = UriComponentsBuilder.fromHttpUrl(NOMINATIM_BASE + "/search")
+                    .queryParam("q", endereco)
+                    .queryParam("format", "json")
+                    .queryParam("limit", 1)
+                    .queryParam("addressdetails", 1)
+                    .queryParam("accept-language", "pt-BR")
+                    .toUriString();
 
-            if (conn.getResponseCode() != 200) {
+            HttpHeaders headers = nominatimHeaders();
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> results = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), List.class).getBody();
+
+            if (results == null || results.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("erro", "Endereço não encontrado: " + endereco));
             }
 
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-            }
-
-            String json = sb.toString().trim();
-            // A resposta é um array JSON: [ { "lat": "...", "lon": "...", "display_name": "..." } ]
-            if (json.equals("[]") || json.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("erro", "Endereço não encontrado: " + endereco));
-            }
-
-            // Extrai lat, lon e display_name do primeiro resultado
-            String lat         = extrairValor(json, "lat");
-            String lon         = extrairValor(json, "lon");
-            String displayName = extrairValor(json, "display_name");
+            Map<String, Object> first = results.get(0);
+            String lat = (String) first.get("lat");
+            String lon = (String) first.get("lon");
+            String displayName = (String) first.get("display_name");
 
             if (lat == null || lon == null) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("erro", "Coordenadas não encontradas para: " + endereco));
             }
 
+            Map<String, Object> resultado = new HashMap<>();
             resultado.put("endereco", displayName != null ? displayName : endereco);
-            resultado.put("latitude",  Double.parseDouble(lat));
+            resultado.put("latitude", Double.parseDouble(lat));
             resultado.put("longitude", Double.parseDouble(lon));
-            log.info("Geocodificação '{}' -> lat={} lon={}", endereco, lat, lon);
+            log.debug("Geocodificação concluída para '{}'", endereco);
             return ResponseEntity.ok(resultado);
 
         } catch (Exception e) {
@@ -191,30 +125,66 @@ public class GeocodingController {
         }
     }
 
-    /**
-     * Extrai o valor do primeiro campo encontrado no JSON.
-     * Tenta cada nome na ordem até achar um com valor não-vazio.
-     */
-    private String extrairCampo(String json, String... campos) {
-        for (String campo : campos) {
-            String valor = extrairValor(json, campo);
-            if (valor != null && !valor.isEmpty()) {
-                return valor;
-            }
-        }
-        return null;
+    private HttpHeaders nominatimHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("User-Agent", USER_AGENT);
+        headers.set("Accept-Language", "pt-BR,pt;q=0.9");
+        return headers;
     }
 
-    /**
-     * Extrai o valor de um campo JSON via regex simples.
-     * Funciona para valores string (entre aspas).
-     */
-    private String extrairValor(String json, String campo) {
-        // Padrão: "campo":"valor"
-        Pattern p = Pattern.compile("\"" + Pattern.quote(campo) + "\"\\s*:\\s*\"([^\"]+)\"");
-        Matcher m = p.matcher(json);
-        if (m.find()) {
-            return m.group(1);
+    private String montarEndereco(Map<String, Object> address, Map<String, Object> response) {
+        if (address == null) {
+            return (String) response.get("display_name");
+        }
+
+        String road     = getFirst(address, "road", "pedestrian", "path", "footway");
+        String houseNum = getString(address, "house_number");
+        String suburb   = getFirst(address, "suburb", "neighbourhood", "district", "quarter");
+        String city     = getFirst(address, "city", "town", "village", "municipality");
+        String stateCode = getString(address, "state_code");
+        String state     = getString(address, "state");
+        String uf = (stateCode != null && !stateCode.isBlank()) ? stateCode : state;
+
+        StringBuilder sb = new StringBuilder();
+        if (road != null) {
+            sb.append(road);
+            if (houseNum != null) sb.append(", ").append(houseNum);
+        }
+        if (suburb != null) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(suburb);
+        }
+        if (city != null) {
+            if (sb.length() > 0) sb.append(" - ");
+            sb.append(city);
+            if (uf != null) sb.append("/").append(uf);
+        }
+
+        if (sb.length() == 0) {
+            String displayName = (String) response.get("display_name");
+            if (displayName != null) {
+                String[] parts = displayName.split(",");
+                StringBuilder fallback = new StringBuilder();
+                for (int i = 0; i < Math.min(3, parts.length); i++) {
+                    if (fallback.length() > 0) fallback.append(",");
+                    fallback.append(parts[i].trim());
+                }
+                return fallback.length() > 0 ? fallback.toString() : null;
+            }
+            return null;
+        }
+        return sb.toString();
+    }
+
+    private String getString(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        return (val instanceof String s && !s.isBlank()) ? s : null;
+    }
+
+    private String getFirst(Map<String, Object> map, String... keys) {
+        for (String key : keys) {
+            String val = getString(map, key);
+            if (val != null) return val;
         }
         return null;
     }

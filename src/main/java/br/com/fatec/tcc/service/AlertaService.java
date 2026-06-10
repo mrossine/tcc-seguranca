@@ -71,6 +71,7 @@ public class AlertaService {
      * Usa uma única query GROUP BY para carregar todas as contagens de reações,
      * evitando o problema de N+1 queries por alerta.
      */
+    @Transactional(readOnly = true)
     public List<AlertaResponseDTO> listarAlertasAtivos(String emailLogado) {
         Usuario usuarioLogado = usuarioService.findUserByUsername(emailLogado);
         LocalDateTime limite = LocalDateTime.now().minusDays(14);
@@ -79,9 +80,10 @@ public class AlertaService {
 
         List<Long> ids = alertas.stream().map(Alerta::getId).collect(Collectors.toList());
         Map<Long, Map<AlertaReacao.TipoReacao, Long>> contagensReacoes = carregarContagensReacoes(ids);
+        Map<Long, Long> contagensConfirmacoes = carregarContagensConfirmacoes(ids);
 
         return alertas.stream()
-                .map(alerta -> convertToResponseDTO(alerta, usuarioLogado, contagensReacoes))
+                .map(alerta -> convertToResponseDTO(alerta, usuarioLogado, contagensReacoes, contagensConfirmacoes))
                 .collect(Collectors.toList());
     }
 
@@ -93,6 +95,15 @@ public class AlertaService {
             AlertaReacao.TipoReacao tipo = (AlertaReacao.TipoReacao) row[1];
             Long count = (Long) row[2];
             resultado.computeIfAbsent(alertaId, k -> new HashMap<>()).put(tipo, count);
+        }
+        return resultado;
+    }
+
+    private Map<Long, Long> carregarContagensConfirmacoes(Collection<Long> alertaIds) {
+        if (alertaIds.isEmpty()) return Map.of();
+        Map<Long, Long> resultado = new HashMap<>();
+        for (Object[] row : confirmacaoRepository.countsByAlertaIds(alertaIds)) {
+            resultado.put((Long) row[0], (Long) row[1]);
         }
         return resultado;
     }
@@ -182,6 +193,7 @@ public class AlertaService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /** Lista todas as denúncias de alerta (opcionalmente filtradas por status) para o admin. */
+    @Transactional(readOnly = true)
     public List<DenunciaAlertaAdminDTO> listarDenunciasAlerta(String statusFiltro) {
         List<DenunciaAlerta> lista;
         if (statusFiltro == null || statusFiltro.isBlank()) {
@@ -295,6 +307,7 @@ public class AlertaService {
     }
 
     /** Retorna o total de likes e dislikes de um alerta. */
+    @Transactional(readOnly = true)
     public Map<String, Long> obterContadoresReacoes(Long alertaId) {
         long likes    = reacaoRepository.countByAlertaIdAndTipo(alertaId, AlertaReacao.TipoReacao.LIKE);
         long dislikes = reacaoRepository.countByAlertaIdAndTipo(alertaId, AlertaReacao.TipoReacao.DISLIKE);
@@ -302,6 +315,7 @@ public class AlertaService {
     }
 
     /** Lista (CONSULTA) todos os alertas criados por um usuário específico. */
+    @Transactional(readOnly = true)
     public List<AlertaResponseDTO> listarAlertasPorUsuario(Usuario usuario) {
         return alertaRepository.findByUsuarioOrderByDataCriacaoDesc(usuario)
                 .stream()
@@ -320,7 +334,8 @@ public class AlertaService {
             AlertaReacao.TipoReacao.LIKE, likes,
             AlertaReacao.TipoReacao.DISLIKE, dislikes
         );
-        return buildResponseDTO(alerta, usuarioLogado, contagens);
+        long confirmacoes = confirmacaoRepository.countByAlertaId(alerta.getId());
+        return buildResponseDTO(alerta, usuarioLogado, contagens, confirmacoes);
     }
 
     /**
@@ -328,14 +343,16 @@ public class AlertaService {
      * Usado em listagens para evitar N+1 queries.
      */
     private AlertaResponseDTO convertToResponseDTO(Alerta alerta, Usuario usuarioLogado,
-            Map<Long, Map<AlertaReacao.TipoReacao, Long>> contagensReacoes) {
+            Map<Long, Map<AlertaReacao.TipoReacao, Long>> contagensReacoes,
+            Map<Long, Long> contagensConfirmacoes) {
         Map<AlertaReacao.TipoReacao, Long> contagens =
                 contagensReacoes.getOrDefault(alerta.getId(), Map.of());
-        return buildResponseDTO(alerta, usuarioLogado, contagens);
+        long confirmacoes = contagensConfirmacoes.getOrDefault(alerta.getId(), 0L);
+        return buildResponseDTO(alerta, usuarioLogado, contagens, confirmacoes);
     }
 
     private AlertaResponseDTO buildResponseDTO(Alerta alerta, Usuario usuarioLogado,
-            Map<AlertaReacao.TipoReacao, Long> contagens) {
+            Map<AlertaReacao.TipoReacao, Long> contagens, long confirmacoes) {
         boolean podeExcluir = false;
         boolean meuAlerta = false;
         if (usuarioLogado != null) {
@@ -357,7 +374,7 @@ public class AlertaService {
             alerta.getDataHora(),
             alerta.getStatus(),
             alerta.getUsuario().getNomeCompleto(),
-            alerta.getConfirmacoes(),
+            (int) confirmacoes,
             alerta.getDenuncias(),
             alerta.getDataCriacao(),
             podeExcluir,

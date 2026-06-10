@@ -58,6 +58,9 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(31536000)
                         )
                         .frameOptions(frame -> frame.sameOrigin())
+                        // 'unsafe-inline' nos scripts é necessário enquanto os templates Thymeleaf usarem
+                        // blocos <script> inline. A remoção exige migrar todos os scripts para
+                        // arquivos externos (/js/) e adicionar nonces gerados por request.
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives("default-src 'self'; " +
                                         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +

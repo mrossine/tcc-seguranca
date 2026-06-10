@@ -42,6 +42,7 @@ public class UsuarioService implements UserDetailsService {
     }
 
     //Busca um usuário completo (entidade) pelo e-mail – útil para controllers.
+    @Transactional(readOnly = true)
     public Usuario findUserByUsername(String email) {
         return usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado: " + email));
@@ -52,9 +53,7 @@ public class UsuarioService implements UserDetailsService {
     //Valida duplicidade de e-mail e matrícula.
     @Transactional
     public Usuario cadastrar(UsuarioDTO usuarioDTO) {
-        log.info("=== INICIANDO CADASTRO ===");
-        log.info("Email: {}", usuarioDTO.email());
-        log.info("Matrícula: {}", usuarioDTO.matricula());
+        log.debug("Iniciando cadastro de novo usuário");
 
         if (usuarioRepository.existsByEmail(usuarioDTO.email())) {
             throw new RuntimeException("E-mail já cadastrado");
@@ -107,33 +106,29 @@ public class UsuarioService implements UserDetailsService {
     }
 
     //Busca um usuário pelo ID (entidade JPA).
+    @Transactional(readOnly = true)
     public Usuario buscarPorId(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
     }
 
     //Verifica se um e-mail já está cadastrado.
+    @Transactional(readOnly = true)
     public boolean checkEmailExists(String email) {
         return usuarioRepository.existsByEmail(email);
     }
 
-    //Administração (listagem, exclusão, relatórios)
-    //Retorna todos os usuários como DTO (sem senha). Utilizado para administração.
-    public List<UsuarioDTO> listarTodosUsuarios() {
-        return usuarioRepository.findAll().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    //Exclui fisicamente um usuário pelo ID.
+    // Desativa (soft delete) um usuário pelo ID — preserva histórico de alertas e caronas.
     @Transactional
     public void deletarUsuario(Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-        usuarioRepository.delete(usuario);
+        usuario.setAtivo(false);
+        usuarioRepository.save(usuario);
     }
 
     // Lista usuários com paginação e filtros — retorna entidades (com ID) para uso no admin
+    @Transactional(readOnly = true)
     public Page<Usuario> listarUsuariosEntidadePaginado(String nome, String email, String curso, Pageable pageable) {
         return usuarioRepository.findAll(
                 UsuarioSpecification.filtrar(nome, email, curso),
@@ -143,6 +138,7 @@ public class UsuarioService implements UserDetailsService {
 
     //Lista usuários com paginação e filtros dinâmicos (nome, email, curso).
     //Retorna uma página de UsuarioDTO.
+    @Transactional(readOnly = true)
     public Page<UsuarioDTO> listarUsuariosPaginado(String nome, String email, String curso, Pageable pageable) {
         Page<Usuario> page = usuarioRepository.findAll(
                 UsuarioSpecification.filtrar(nome, email, curso),
@@ -216,8 +212,9 @@ public class UsuarioService implements UserDetailsService {
      */
     @Transactional
     public int desativarAlunosExpirados() {
-        List<Usuario> ativos = usuarioRepository.findAll().stream()
-                .filter(u -> Boolean.TRUE.equals(u.getAtivo()))
+        List<Usuario> ativos = usuarioRepository
+                .findByTipoUsuarioAndAtivo(Usuario.TipoUsuario.ALUNO, true)
+                .stream()
                 .filter(UsuarioService::alunoExpirado)
                 .collect(Collectors.toList());
         for (Usuario u : ativos) {

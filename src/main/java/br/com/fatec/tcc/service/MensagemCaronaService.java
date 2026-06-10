@@ -8,6 +8,7 @@ import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.repository.CaronaRepository;
 import br.com.fatec.tcc.repository.MensagemCaronaRepository;
 import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
+import br.com.fatec.tcc.repository.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class MensagemCaronaService {
     private final MensagemCaronaRepository mensagemRepository;
     private final CaronaRepository caronaRepository;
     private final ParticipacaoCaronaRepository participacaoRepository;
+    private final UsuarioRepository usuarioRepository;
 
     /** Verifica se o usuário é motorista ou passageiro confirmado da carona. */
     private boolean temPermissao(Carona carona, Usuario usuario) {
@@ -39,17 +41,23 @@ public class MensagemCaronaService {
                 .orElse(false);
     }
 
+    private Usuario resolverUsuario(String email) {
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado: " + email));
+    }
+
     /**
      * Persiste uma nova mensagem e retorna o DTO.
      * Lança AccessDeniedException se o remetente não for participante confirmado.
      */
     @Transactional
-    public MensagemCaronaDTO enviarMensagem(Long caronaId, Usuario remetente, String conteudo) {
+    public MensagemCaronaDTO enviarMensagem(Long caronaId, String emailRemetente, String conteudo) {
         if (conteudo == null || conteudo.isBlank()) {
             throw new IllegalArgumentException("Conteúdo da mensagem não pode ser vazio");
         }
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new EntityNotFoundException("Carona não encontrada"));
+        Usuario remetente = resolverUsuario(emailRemetente);
         if (!temPermissao(carona, remetente)) {
             throw new AccessDeniedException("Apenas o motorista e passageiros confirmados podem enviar mensagens");
         }
@@ -59,7 +67,7 @@ public class MensagemCaronaService {
         msg.setConteudo(conteudo.trim());
         msg.setLido(false);
         MensagemCarona saved = mensagemRepository.save(msg);
-        log.info("Chat — carona={} remetente={}", caronaId, remetente.getEmail());
+        log.info("Chat — carona={} remetente={}", caronaId, emailRemetente);
         return MensagemCaronaDTO.fromEntity(saved);
     }
 
@@ -83,9 +91,10 @@ public class MensagemCaronaService {
      * Marca como lidas as mensagens não lidas de outros remetentes.
      */
     @Transactional
-    public List<MensagemCaronaDTO> listarMensagens(Long caronaId, Usuario usuarioLogado) {
+    public List<MensagemCaronaDTO> listarMensagens(Long caronaId, String emailUsuario) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new EntityNotFoundException("Carona não encontrada"));
+        Usuario usuarioLogado = resolverUsuario(emailUsuario);
         if (!temPermissao(carona, usuarioLogado)) {
             throw new AccessDeniedException("Sem permissão para ver as mensagens desta carona");
         }
@@ -101,6 +110,7 @@ public class MensagemCaronaService {
     }
 
     /** Conta mensagens não lidas enviadas por outros participantes. */
+    @Transactional(readOnly = true)
     public long contarNaoLidos(Long caronaId, Usuario usuario) {
         return mensagemRepository.countByCaronaIdAndLidoFalseAndRemetenteIdNot(caronaId, usuario.getId());
     }

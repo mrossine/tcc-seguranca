@@ -142,13 +142,16 @@ class AlertaServiceTest {
         when(alertaRepository.findByStatusAndDataCriacaoAfterOrderByDataCriacaoDesc(
                 eq(Alerta.StatusAlerta.ATIVO), any())).thenReturn(List.of(alerta));
         when(reacaoRepository.countsByAlertaIds(anyCollection())).thenReturn(List.of());
+        when(confirmacaoRepository.countsByAlertaIds(anyCollection())).thenReturn(List.of());
 
         List<AlertaResponseDTO> resultado = alertaService.listarAlertasAtivos("autor@fatec.sp.gov.br");
 
         assertThat(resultado).hasSize(1);
-        // Verifica que countByAlertaIdAndTipo (query individual) NUNCA foi chamado
+        // Verifica que queries individuais NUNCA foram chamadas
         verify(reacaoRepository, never()).countByAlertaIdAndTipo(anyLong(), any());
+        verify(confirmacaoRepository, never()).countByAlertaId(anyLong());
         verify(reacaoRepository, times(1)).countsByAlertaIds(anyCollection());
+        verify(confirmacaoRepository, times(1)).countsByAlertaIds(anyCollection());
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────

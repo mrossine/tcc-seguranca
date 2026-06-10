@@ -5,10 +5,9 @@ import br.com.fatec.tcc.dto.CaronaResponseDTO;
 import br.com.fatec.tcc.dto.DenunciaRequestDTO;
 import br.com.fatec.tcc.dto.MensagemCaronaDTO;
 import br.com.fatec.tcc.dto.ParticipacaoCaronaDTO;
-import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.service.CaronaService;
 import br.com.fatec.tcc.service.MensagemCaronaService;
-import br.com.fatec.tcc.service.UsuarioService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +25,6 @@ public class CaronaRestController {
 
     private final CaronaService caronaService;
     private final MensagemCaronaService mensagemService;
-    private final UsuarioService usuarioService;
 
     /** GET /api/caronas — lista as caronas visíveis ao usuário logado. */
     @GetMapping
@@ -186,8 +184,7 @@ public class CaronaRestController {
     @GetMapping("/{id}/mensagens")
     public ResponseEntity<?> listarMensagens(@PathVariable Long id, Authentication auth) {
         try {
-            Usuario usuario = usuarioService.findUserByUsername(auth.getName());
-            List<MensagemCaronaDTO> msgs = mensagemService.listarMensagens(id, usuario);
+            List<MensagemCaronaDTO> msgs = mensagemService.listarMensagens(id, auth.getName());
             return ResponseEntity.ok(msgs);
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
@@ -203,8 +200,7 @@ public class CaronaRestController {
                                             Authentication auth) {
         try {
             String conteudo = body.get("conteudo");
-            Usuario usuario = usuarioService.findUserByUsername(auth.getName());
-            MensagemCaronaDTO dto = mensagemService.enviarMensagem(id, usuario, conteudo);
+            MensagemCaronaDTO dto = mensagemService.enviarMensagem(id, auth.getName(), conteudo);
             return ResponseEntity.status(HttpStatus.CREATED).body(dto);
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));

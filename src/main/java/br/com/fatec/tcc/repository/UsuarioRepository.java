@@ -30,8 +30,11 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpec
     //Verifica se já existe um usuário com a matrícula informada
     boolean existsByMatricula(String matricula);
 
-    //Relatório: quantidade de usuários agrupados por período (MANHA, TARDE, NOITE)     
+    //Relatório: quantidade de usuários agrupados por período (MANHA, TARDE, NOITE)
     @Query("SELECT u.periodo, COUNT(u) FROM Usuario u GROUP BY u.periodo")
     List<Object[]> countByPeriodo();
+
+    // Busca alunos ativos/inativos — usado para filtrar candidatos à expiração sem varrer todos os usuários
+    List<Usuario> findByTipoUsuarioAndAtivo(Usuario.TipoUsuario tipoUsuario, Boolean ativo);
     	
 }

@@ -4,6 +4,7 @@ import br.com.fatec.tcc.service.OlhoVivoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -76,9 +77,10 @@ public class OlhoVivoRestController {
     /**
      * GET /api/onibus/debug?termo={termo}
      * Retorna o JSON bruto da SPTrans — útil para inspecionar os campos reais da API.
-     * Remover ou restringir antes de colocar em produção.
+     * Restrito a ADMIN para não expor detalhes internos da API ao público.
      */
     @GetMapping("/debug")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> debug(@RequestParam String termo) {
         String linhasJson   = olhoVivoService.buscarLinhas(termo);
         String resultado = "{\"linhas\":" + linhasJson + "}";

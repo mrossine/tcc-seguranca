@@ -89,6 +89,7 @@ public class CaronaService {
      * Lista (CONSULTA) as caronas que o usuário pode ver: as abertas (com filtros
      * opcionais de origem/destino/horário) somadas às caronas privadas das quais ele participa.
      */
+    @Transactional(readOnly = true)
     public List<CaronaResponseDTO> listarCaronasDisponiveis(String email, String origem, String destino,
                                                             LocalDateTime horarioInicio,
                                                             LocalDateTime horarioFim) {
@@ -371,6 +372,7 @@ public class CaronaService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /** Passageiros confirmados de uma carona — usado pelo motorista ao denunciar. */
+    @Transactional(readOnly = true)
     public List<ParticipacaoCaronaDTO> listarPassageirosConfirmados(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -388,6 +390,7 @@ public class CaronaService {
      * Indica se o usuário pode acessar o chat e os participantes da carona:
      * é o motorista ou um passageiro CONFIRMADO. Usado para liberar a interface.
      */
+    @Transactional(readOnly = true)
     public boolean podeAcessarChat(Long caronaId, String email) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -402,6 +405,7 @@ public class CaronaService {
      * Lista todos os participantes da carona (motorista + passageiros confirmados).
      * Só acessível a quem participa da carona (motorista ou passageiro confirmado).
      */
+    @Transactional(readOnly = true)
     public List<ParticipacaoCaronaDTO> listarParticipantes(Long caronaId, String email) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -604,6 +608,7 @@ public class CaronaService {
     }
 
     /** Lista (CONSULTA) as solicitações ainda pendentes de uma carona — visível só ao motorista. */
+    @Transactional(readOnly = true)
     public List<ParticipacaoCaronaDTO> listarSolicitacoesPorCarona(Long caronaId, String emailMotorista) {
         Carona carona = caronaRepository.findById(caronaId)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -623,6 +628,7 @@ public class CaronaService {
      * - CHEIA/FECHADA/COMPLETADA/FINALIZADA: apenas motorista, passageiros confirmados e admins.
      * - CANCELADA: apenas motorista e admins.
      */
+    @Transactional(readOnly = true)
     public CaronaResponseDTO buscarPorId(Long id, String email) {
         Carona carona = caronaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
@@ -652,6 +658,7 @@ public class CaronaService {
     }
 
     /** Lista (CONSULTA) as caronas ligadas ao usuário: as que ele ofereceu e as que solicitou. */
+    @Transactional(readOnly = true)
     public List<CaronaResponseDTO> listarCaronasPorUsuario(Usuario usuario) {
         List<CaronaResponseDTO> oferecidas = caronaRepository.findByMotoristaOrderByDataCriacaoDesc(usuario)
                 .stream().map(this::convertToResponseDTO).collect(Collectors.toList());

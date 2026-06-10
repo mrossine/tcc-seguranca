@@ -88,6 +88,15 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Flyway: controle de versão do schema em produção -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
         <!-- MELHORIA: H2 para testes (evita precisar de MySQL para rodar testes) -->
         <dependency>
             <groupId>com.h2database</groupId>

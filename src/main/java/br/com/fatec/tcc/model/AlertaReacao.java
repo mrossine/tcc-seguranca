@@ -1,9 +1,10 @@
 package br.com.fatec.tcc.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -19,7 +20,8 @@ import java.time.LocalDateTime;
        uniqueConstraints = @UniqueConstraint(
                name = "uk_alerta_usuario",
                columnNames = {"alerta_id", "usuario_id"}))
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)

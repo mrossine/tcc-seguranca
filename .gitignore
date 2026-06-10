@@ -17,3 +17,9 @@ skills-lock.json
 node_modules/
 package-lock.json
 package.json
+
+# Configuração local com credenciais (NÃO commitar)
+application-dev.properties
+application-local.properties
+.env
+.env.*

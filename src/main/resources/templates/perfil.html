@@ -10,27 +10,8 @@
 			rel="stylesheet">
 	<link rel="stylesheet"
 	      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+	<link rel="stylesheet" href="/css/app.css">
 	<style>
-		.sidebar {
-			min-height: 100vh;
-			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-			color: white;
-		}
-
-		.sidebar a {
-			color: rgba(255, 255, 255, 0.8);
-			text-decoration: none;
-			padding: 10px 15px;
-			display: block;
-			transition: all 0.3s;
-		}
-
-		.sidebar a:hover, .sidebar a.active {
-			background: rgba(255, 255, 255, 0.2);
-			color: white;
-			border-radius: 10px;
-		}
-
 		.profile-avatar {
 			width: 150px;
 			height: 150px;
@@ -49,23 +30,6 @@
 			color: white;
 			border-color: #667eea;
 		}
-		.sidebar .logout-btn {
-			color: rgba(255, 255, 255, 0.8);
-			text-decoration: none;
-			padding: 10px 15px;
-			display: block;
-			transition: all 0.3s;
-			width: 100%;
-			text-align: left;
-			background: none;
-			border: none;
-			font-size: 1rem;
-		}
-		.sidebar .logout-btn:hover {
-			background: rgba(255, 255, 255, 0.2);
-			color: white;
-			border-radius: 10px;
-		}
 		.star-rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; }
 		.star-rating input { display: none; }
 		.star-rating label { font-size: 2rem; color: #ccc; cursor: pointer; transition: color 0.2s; }
@@ -75,10 +39,42 @@
 	</style>
 </head>
 <body>
+<!-- Mobile top navbar -->
+<nav class="navbar navbar-dark d-flex d-md-none align-items-center px-3 py-2 sticky-top bg-app-gradient">
+	<span class="navbar-brand fw-bold mb-0"><i class="bi bi-shield-shaded"></i> Segurança Fatec ZL</span>
+	<button class="navbar-toggler ms-auto border-0" type="button"
+	        data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar"
+	        aria-controls="offcanvasSidebar" aria-label="Abrir menu de navegação">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+</nav>
+<div class="offcanvas offcanvas-start sidebar" id="offcanvasSidebar" tabindex="-1"
+     aria-labelledby="offcanvasSidebarLabel">
+	<div class="offcanvas-header">
+		<h5 id="offcanvasSidebarLabel" class="offcanvas-title fw-bold">
+			<i class="bi bi-shield-shaded"></i> Segurança Fatec ZL
+		</h5>
+		<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button>
+	</div>
+	<div class="offcanvas-body px-0 py-2">
+		<nav class="nav flex-column px-3">
+			<a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+			<a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+			<a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+			<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+			<a href="/perfil" class="active"><i class="bi bi-person"></i> Meu Perfil</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+			<form th:action="@{/logout}" method="post">
+				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
+			</form>
+		</nav>
+	</div>
+</div>
 <div class="container-fluid">
 	<div class="row">
 		<!-- Sidebar -->
-		<div class="col-md-3 col-lg-2 px-0 sidebar">
+		<div class="col-md-3 col-lg-2 px-0 sidebar d-none d-md-block">
 			<div class="text-center py-4">
 				<i class="bi bi-shield-shaded display-3"></i>
 				<h4 class="mt-2">Segurança Fatec ZL</h4>
@@ -268,6 +264,28 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+	function esc(s) {
+		const d = document.createElement('div');
+		d.textContent = s ?? '';
+		return d.innerHTML;
+	}
+
+	function mostrarToast(mensagem, tipo) {
+		const id = 'toast-' + Date.now();
+		const el = document.createElement('div');
+		el.id = id;
+		el.className = `toast align-items-center text-white bg-${tipo} border-0 position-fixed bottom-0 end-0 m-3`;
+		el.setAttribute('role', 'alert');
+		el.style.zIndex = '9999';
+		el.innerHTML = '<div class="d-flex"><div class="toast-body"></div>' +
+			'<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button></div>';
+		el.querySelector('.toast-body').textContent = mensagem;
+		document.body.appendChild(el);
+		const bsToast = new bootstrap.Toast(el, { delay: 3500 });
+		bsToast.show();
+		el.addEventListener('hidden.bs.toast', () => el.remove());
+	}
+
 	// Validação de confirmação de senha
 	const novaSenha = document.getElementById('novaSenha');
 	const confirmarSenha = document.getElementById('confirmarSenha');
@@ -295,18 +313,18 @@
 	function renderAlerta(a) {
 		return `
             <div class="card mb-2"><div class="card-body py-2">
-                <strong>${a.titulo || 'Sem título'}</strong>
+                <strong>${esc(a.titulo || 'Sem título')}</strong>
                 <small class="text-muted float-end">${new Date(a.dataCriacao).toLocaleDateString()}</small>
-                <p class="mb-0 small">${a.descricao || ''}</p>
+                <p class="mb-0 small">${esc(a.descricao || '')}</p>
             </div></div>`;
 	}
 
 	function renderCaronaMotorista(c) {
 		return `
             <div class="card mb-2"><div class="card-body py-2">
-                <strong>${c.origem} → ${c.destino}</strong>
+                <strong>${esc(c.origem)} → ${esc(c.destino)}</strong>
                 <small class="text-muted float-end">${new Date(c.horarioSaida).toLocaleDateString()}</small>
-                <p class="mb-0 small">Status: ${c.status}</p>
+                <p class="mb-0 small">Status: ${esc(c.status)}</p>
             </div></div>`;
 	}
 
@@ -315,12 +333,12 @@
 			? `<button class="btn btn-warning btn-sm" onclick="abrirAvaliar(${c.id})"><i class="bi bi-star-fill"></i> Avaliar</button>`
 			: (c.status === 'FINALIZADA'
 				? '<span class="badge bg-success">Avaliada</span>'
-				: `<span class="badge bg-secondary">${c.status}</span>`);
+				: `<span class="badge bg-secondary">${esc(c.status)}</span>`);
 		return `
             <div class="card mb-2"><div class="card-body py-2 d-flex justify-content-between align-items-center">
                 <div>
-                    <strong>${c.origem} → ${c.destino}</strong>
-                    <div class="small text-muted">${new Date(c.horarioSaida).toLocaleDateString()} · Motorista: ${c.motoristaNome}</div>
+                    <strong>${esc(c.origem)} → ${esc(c.destino)}</strong>
+                    <div class="small text-muted">${new Date(c.horarioSaida).toLocaleDateString()} · Motorista: ${esc(c.motoristaNome)}</div>
                 </div>
                 <div>${botaoAvaliar}</div>
             </div></div>`;
@@ -399,7 +417,7 @@
 
 	function enviarAvaliacao() {
 		const sel = document.querySelector('#starContainer input:checked');
-		if (!sel) { alert('Selecione uma nota de 1 a 5 estrelas.'); return; }
+		if (!sel) { mostrarToast('Selecione uma nota de 1 a 5 estrelas.', 'warning'); return; }
 		const estrelas = parseInt(sel.value);
 		const comentario = document.getElementById('comentarioAvaliacao').value.trim();
 		fetch(`/api/caronas/${caronaIdAvaliar}/avaliar`, {
@@ -411,10 +429,10 @@
 		.then(({ ok, data }) => {
 			if (!ok) throw new Error(data.message || 'Erro ao avaliar.');
 			bootstrap.Modal.getInstance(document.getElementById('modalAvaliar')).hide();
-			alert(data.message || 'Avaliação enviada!');
+			mostrarToast(data.message || 'Avaliação enviada!', 'success');
 			carregarCaronasPassageiro();
 		})
-		.catch(err => alert('Erro: ' + err.message));
+		.catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
 	}
 </script>
 </body>

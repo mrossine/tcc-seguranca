@@ -42,10 +42,15 @@ public class CaronaRestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /** GET /api/caronas/{id} — detalhes de uma carona. */
+    /** GET /api/caronas/{id} — detalhes de uma carona (verifica acesso antes de retornar). */
     @GetMapping("/{id}")
-    public CaronaResponseDTO buscarCarona(@PathVariable Long id) {
-        return caronaService.buscarPorId(id);
+    public ResponseEntity<Object> buscarCarona(@PathVariable Long id, Authentication auth) {
+        try {
+            return ResponseEntity.ok(caronaService.buscarPorId(id, auth.getName()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", e.getMessage()));
+        }
     }
 
     /** POST /api/caronas/{id}/solicitar — passageiro solicita vaga. */

@@ -617,11 +617,38 @@ public class CaronaService {
                 .collect(Collectors.toList());
     }
 
-    /** Busca (CONSULTA) uma carona pelo id e devolve o DTO de resposta. */
-    public CaronaResponseDTO buscarPorId(Long id) {
+    /**
+     * Busca uma carona por ID verificando se o usuário tem permissão de visualizá-la.
+     * - ABERTA: qualquer usuário autenticado pode ver (precisa ver detalhes para solicitar).
+     * - CHEIA/FECHADA/COMPLETADA/FINALIZADA: apenas motorista, passageiros confirmados e admins.
+     * - CANCELADA: apenas motorista e admins.
+     */
+    public CaronaResponseDTO buscarPorId(Long id, String email) {
         Carona carona = caronaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Carona não encontrada"));
-        return convertToResponseDTO(carona);
+        Usuario usuario = usuarioService.findUserByUsername(email);
+
+        if (usuario.getRole() == Usuario.Role.ADMIN) {
+            return convertToResponseDTO(carona, usuario);
+        }
+
+        Carona.StatusCarona status = carona.getStatus();
+        boolean ehMotorista = carona.getMotorista().getId().equals(usuario.getId());
+
+        if (status == Carona.StatusCarona.ABERTA) {
+            return convertToResponseDTO(carona, usuario);
+        }
+        if (ehMotorista) {
+            return convertToResponseDTO(carona, usuario);
+        }
+        boolean ehPassageiroConfirmado = participacaoRepository
+                .findByCaronaAndPassageiro(carona, usuario)
+                .map(p -> p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA)
+                .orElse(false);
+        if (ehPassageiroConfirmado) {
+            return convertToResponseDTO(carona, usuario);
+        }
+        throw new RuntimeException("Acesso negado a esta carona");
     }
 
     /** Lista (CONSULTA) as caronas ligadas ao usuário: as que ele ofereceu e as que solicitou. */

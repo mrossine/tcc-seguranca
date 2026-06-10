@@ -6,6 +6,7 @@ import br.com.fatec.tcc.service.UsuarioService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -19,10 +20,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -38,7 +41,6 @@ public class AuthController {
 										 HttpServletRequest request) {
 		String email = credentials.get("email");
 		String senha = credentials.get("senha");
-		Map<String, Object> response = new HashMap<>();
 
 		try {
 			Authentication auth = authenticationManager.authenticate(
@@ -55,107 +57,48 @@ public class AuthController {
 
 			Usuario usuario = usuarioService.findUserByUsername(email);
 
-			response.put("sessionId",    session.getId());
-			response.put("id",           usuario.getId());
-			response.put("nomeCompleto", usuario.getNomeCompleto());
-			response.put("email",        usuario.getEmail());
-			response.put("matricula",    usuario.getMatricula());
-			response.put("curso",        usuario.getCurso());
-			response.put("periodo",      usuario.getPeriodo());
-			response.put("fotoPerfil",   usuario.getFotoPerfil());
-			response.put("ativo",        usuario.getAtivo());
-			response.put("role",         usuario.getRole());
-
 			log.info("Login mobile bem-sucedido: {}", email);
-			return ResponseEntity.ok(response);
+			return ResponseEntity.ok(Map.of(
+				"sessionId",    session.getId(),
+				"id",           usuario.getId(),
+				"nomeCompleto", usuario.getNomeCompleto(),
+				"email",        usuario.getEmail(),
+				"matricula",    usuario.getMatricula(),
+				"curso",        usuario.getCurso(),
+				"periodo",      usuario.getPeriodo(),
+				"fotoPerfil",   usuario.getFotoPerfil() != null ? usuario.getFotoPerfil() : "",
+				"ativo",        usuario.getAtivo(),
+				"role",         usuario.getRole()
+			));
 
 		} catch (AuthenticationException e) {
 			log.warn("Falha no login mobile para: {}", email);
-			response.put("message", "E-mail ou senha inválidos.");
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(Map.of("message", "E-mail ou senha inválidos."));
 		}
 	}
 
 	@PostMapping(value = "/register", produces = "application/json", consumes = "application/json")
-	public ResponseEntity<?> register(@RequestBody UsuarioDTO usuarioDTO) {
-		Map<String, Object> response = new HashMap<>();
+	public ResponseEntity<?> register(@RequestBody @Valid UsuarioDTO usuarioDTO,
+									  BindingResult bindingResult) {
+		if (bindingResult.hasErrors()) {
+			String erros = bindingResult.getFieldErrors().stream()
+					.map(FieldError::getDefaultMessage)
+					.collect(Collectors.joining("; "));
+			return ResponseEntity.badRequest().body(Map.of("message", erros));
+		}
+
+		if (!usuarioDTO.senha().equals(usuarioDTO.confirmarSenha())) {
+			return ResponseEntity.badRequest().body(Map.of("message", "As senhas não coincidem"));
+		}
 
 		try {
-			log.info("=== RECEBENDO REQUISIÇÃO DE CADASTRO ===");
-			log.info("Email: {}", usuarioDTO.email());
-			log.info("Nome: {}", usuarioDTO.nomeCompleto());
-			log.info("Matrícula: {}", usuarioDTO.matricula());
-
-			// Validações
-			if (usuarioDTO.nomeCompleto() == null || usuarioDTO.nomeCompleto().trim().isEmpty()) {
-				response.put("message", "Nome completo é obrigatório");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			if (usuarioDTO.email() == null || usuarioDTO.email().trim().isEmpty()) {
-				response.put("message", "E-mail é obrigatório");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar e-mail institucional
-			if (!usuarioDTO.email().matches("^[a-zA-Z0-9._%+-]+@fatec\\.sp\\.gov\\.br$")) {
-				response.put("message", "Use um e-mail @fatec.sp.gov.br");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar senha
-			if (usuarioDTO.senha() == null || usuarioDTO.senha().length() < 6) {
-				response.put("message", "A senha deve ter no mínimo 6 caracteres");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar confirmação de senha
-			if (usuarioDTO.confirmarSenha() == null
-					|| !usuarioDTO.senha().equals(usuarioDTO.confirmarSenha())) {
-				response.put("message", "As senhas não coincidem");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar matrícula
-			if (usuarioDTO.matricula() == null || !usuarioDTO.matricula().matches("^[A-Za-z0-9]{8,15}$")) {
-				response.put("message", "Matrícula deve ter entre 8 e 15 caracteres alfanuméricos");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar curso
-			if (usuarioDTO.curso() == null || usuarioDTO.curso().trim().isEmpty()) {
-				response.put("message", "Curso é obrigatório");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar período
-			if (usuarioDTO.periodo() == null) {
-				response.put("message", "Período é obrigatório");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Validar tipo de usuário (aluno, docente ou funcionário)
-			if (usuarioDTO.tipoUsuario() == null) {
-				response.put("message", "Selecione se você é aluno, docente ou funcionário");
-				return ResponseEntity.badRequest().body(response);
-			}
-
-			// Tentar cadastrar
 			usuarioService.cadastrar(usuarioDTO);
-
-			response.put("success", true);
-			response.put("message", "Usuário cadastrado com sucesso!");
-			log.info("Usuário cadastrado com sucesso: {}", usuarioDTO.email());
-			return ResponseEntity.ok(response);
-
+			log.info("Cadastro concluído com sucesso");
+			return ResponseEntity.ok(Map.of("success", true, "message", "Usuário cadastrado com sucesso!"));
 		} catch (RuntimeException e) {
-			log.error("Erro ao cadastrar usuário: {}", e.getMessage());
-			response.put("message", e.getMessage());
-			return ResponseEntity.badRequest().body(response);
-		} catch (Exception e) {
-			log.error("Erro inesperado ao cadastrar usuário", e);
-			response.put("message", "Erro interno no servidor: " + e.getMessage());
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+			log.warn("Falha no cadastro: {}", e.getMessage());
+			return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
 		}
 	}
 

@@ -10,29 +10,10 @@
 <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="stylesheet" href="/css/app.css">
 <!-- Leaflet.js — CSS deve ficar no <head> para o mapa renderizar corretamente -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
 <style>
-.sidebar {
-	min-height: 100vh;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-}
-
-.sidebar a {
-	color: rgba(255, 255, 255, 0.8);
-	text-decoration: none;
-	padding: 10px 15px;
-	display: block;
-	transition: all 0.3s;
-}
-
-.sidebar a:hover, .sidebar a.active {
-	background: rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 10px;
-}
-
 .alert-card {
 	border-left: 4px solid #6c757d;
 	transition: transform 0.3s;
@@ -86,32 +67,45 @@
 .btn-reacao:hover { background: #e8e8e8; }
 .btn-reacao-like.ativo  { background: #e8f5e9; border-color: #4caf50; }
 .btn-reacao-dislike.ativo { background: #ffebee; border-color: #f44336; }
-
-.sidebar .logout-btn {
-	color: rgba(255, 255, 255, 0.8);
-	text-decoration: none;
-	padding: 10px 15px;
-	display: block;
-	transition: all 0.3s;
-	width: 100%;
-	text-align: left;
-	background: none;
-	border: none;
-	font-size: 1rem;
-}
-
-.sidebar .logout-btn:hover {
-	background: rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 10px;
-}
 </style>
 </head>
 <body>
+<!-- Mobile top navbar -->
+<nav class="navbar navbar-dark d-flex d-md-none align-items-center px-3 py-2 sticky-top bg-app-gradient">
+	<span class="navbar-brand fw-bold mb-0"><i class="bi bi-shield-shaded"></i> Segurança Fatec ZL</span>
+	<button class="navbar-toggler ms-auto border-0" type="button"
+	        data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar"
+	        aria-controls="offcanvasSidebar" aria-label="Abrir menu de navegação">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+</nav>
+<div class="offcanvas offcanvas-start sidebar" id="offcanvasSidebar" tabindex="-1"
+     aria-labelledby="offcanvasSidebarLabel">
+	<div class="offcanvas-header">
+		<h5 id="offcanvasSidebarLabel" class="offcanvas-title fw-bold">
+			<i class="bi bi-shield-shaded"></i> Segurança Fatec ZL
+		</h5>
+		<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button>
+	</div>
+	<div class="offcanvas-body px-0 py-2">
+		<nav class="nav flex-column px-3">
+			<a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+			<a href="/alertas" class="active"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+			<a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+			<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+			<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+			<form th:action="@{/logout}" method="post">
+				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
+			</form>
+		</nav>
+	</div>
+</div>
 	<div class="container-fluid">
 		<div class="row">
 			<!-- Sidebar -->
-			<div class="col-md-3 col-lg-2 px-0 sidebar">
+			<div class="col-md-3 col-lg-2 px-0 sidebar d-none d-md-block">
 				<div class="text-center py-4">
 					<i class="bi bi-shield-shaded display-3"></i>
 					<h4 class="mt-2">Segurança Fatec ZL</h4>
@@ -237,12 +231,12 @@
 	</div>
 
 	<!-- Modal Ver Mapa -->
-	<div class="modal fade" id="modalMapa" tabindex="-1">
+	<div class="modal fade" id="modalMapa" tabindex="-1" aria-labelledby="modalMapaTituloLabel">
 		<div class="modal-dialog modal-lg">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h5 class="modal-title"><i class="bi bi-map"></i> <span id="modalMapaTitulo"></span></h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					<h5 class="modal-title" id="modalMapaTituloLabel"><i class="bi bi-map"></i> <span id="modalMapaTitulo"></span></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
 				</div>
 				<div class="modal-body p-0">
 					<div id="mapaContainer" style="height: 420px; width: 100%;"></div>
@@ -256,12 +250,12 @@
 	</div>
 
 	<!-- Modal Denunciar Alerta -->
-	<div class="modal fade" id="modalDenuncia" tabindex="-1">
+	<div class="modal fade" id="modalDenuncia" tabindex="-1" aria-labelledby="modalDenunciaTituloLabel">
 		<div class="modal-dialog">
 			<div class="modal-content">
 				<div class="modal-header">
-					<h5 class="modal-title"><i class="bi bi-flag-fill text-danger"></i> Denunciar Alerta</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					<h5 class="modal-title" id="modalDenunciaTituloLabel"><i class="bi bi-flag-fill text-danger"></i> Denunciar Alerta</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
 				</div>
 				<div class="modal-body">
 					<div class="alert alert-light border small mb-3">
@@ -296,10 +290,48 @@
 		</div>
 	</div>
 
+	<!-- Modal Confirmação -->
+	<div class="modal fade" id="modalConfirmar" tabindex="-1" aria-labelledby="modalConfirmarTitulo" aria-modal="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="modalConfirmarTitulo">
+						<i class="bi bi-exclamation-triangle text-warning"></i> Confirmar
+					</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+				</div>
+				<div class="modal-body" id="modalConfirmarTexto"></div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+					<button type="button" class="btn btn-danger" id="btnConfirmarOk">Confirmar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 	<script>
         let alertas = [];
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s ?? '';
+            return d.innerHTML;
+        }
+
+        function confirmar(mensagem) {
+            return new Promise(resolve => {
+                document.getElementById('modalConfirmarTexto').textContent = mensagem;
+                const modalEl = document.getElementById('modalConfirmar');
+                const instance = new bootstrap.Modal(modalEl);
+                const btn = document.getElementById('btnConfirmarOk');
+                const onClick = () => { instance.hide(); btn.removeEventListener('click', onClick); resolve(true); };
+                btn.addEventListener('click', onClick);
+                modalEl.addEventListener('hidden.bs.modal', () => { btn.removeEventListener('click', onClick); resolve(false); }, { once: true });
+                instance.show();
+            });
+        }
 
         // FIX 3/4: Ler o token CSRF do cookie (gerado pelo CookieCsrfTokenRepository)
         function getCsrfToken() {
@@ -422,57 +454,50 @@
                     <div class="card alert-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0">${alerta.titulo || 'Sem título'}</h5>
+                                <h5 class="card-title mb-0">${esc(alerta.titulo || 'Sem título')}</h5>
                                 <span class="badge ${getBadgeClass(alerta.tipo)} ms-1">
-                                    ${alerta.tipo.replace(/_/g, ' ')}
+                                    ${esc(alerta.tipo.replace(/_/g, ' '))}
                                 </span>
                             </div>
                             <hr class="my-2">
-                            <!-- FIX 2: Mostrar campo localizacao (endereço) em vez de coordenadas -->
                             <div class="small mb-1">
                                 <i class="bi bi-geo-alt text-danger"></i>
-                                <strong>${alerta.localizacao || 'Localização não informada'}</strong>
+                                <strong>${esc(alerta.localizacao || 'Localização não informada')}</strong>
                             </div>
                             <div class="small mb-1">
                                 <i class="bi bi-clock text-secondary"></i> ${formatarData(alerta.dataHora)}
                             </div>
                             <div class="small mb-1">
-                                <i class="bi bi-person text-primary"></i> ${alerta.nomeUsuario}
+                                <i class="bi bi-person text-primary"></i> ${esc(alerta.nomeUsuario)}
                             </div>
                             ${alerta.descricao
-                                ? `<div class="small text-muted mt-1 mb-2">${alerta.descricao}</div>`
+                                ? `<div class="small text-muted mt-1 mb-2">${esc(alerta.descricao)}</div>`
                                 : ''}
                             <hr class="my-2">
-                            <div class="d-flex gap-2 flex-wrap">
+                            <div class="d-flex gap-2 flex-wrap align-items-center">
                                 <button
                                     class="btn-reacao btn-reacao-like"
                                     data-alerta-id="${alerta.id}"
                                     data-tipo="LIKE"
-                                    title="Confirmar alerta como verdadeiro">
+                                    title="Confirmar alerta como verdadeiro"
+                                    aria-label="Confirmar alerta (${alerta.likes || 0} confirmações)">
                                     👍 <span class="contador-like" id="like-${alerta.id}">${alerta.likes || 0}</span>
                                 </button>
                                 <button
                                     class="btn-reacao btn-reacao-dislike"
                                     data-alerta-id="${alerta.id}"
                                     data-tipo="DISLIKE"
-                                    title="Marcar alerta como falso ou impreciso">
+                                    title="Marcar alerta como falso ou impreciso"
+                                    aria-label="Marcar como falso (${alerta.dislikes || 0} marcações)">
                                     👎 <span class="contador-dislike" id="dislike-${alerta.id}">${alerta.dislikes || 0}</span>
-                                </button>
-                                <button
-                                    onclick="denunciarAlerta(${alerta.id})"
-                                    class="btn btn-outline-danger btn-sm flex-grow-1"
-                                    title="Denunciar conteúdo ofensivo">
-                                    <i class="bi bi-flag"></i> Denunciar
-                                    <span class="badge bg-danger ms-1">${alerta.denuncias || 0}</span>
                                 </button>
                                 ${(alerta.latitude && alerta.longitude) ? `
                                 <button
-                                    onclick="verMapa(${alerta.latitude}, ${alerta.longitude}, '${alerta.titulo.replace(/'/g, "\\'")}')"
+                                    onclick="verMapa(${alerta.id})"
                                     class="btn btn-outline-primary btn-sm flex-grow-1"
                                     title="Ver localização no mapa">
                                     <i class="bi bi-map"></i> Ver Mapa
                                 </button>` : ''}
-                                <!-- FIX 4: Excluir apenas para quem tem permissão (podeExcluir vem do backend) -->
                                 ${alerta.podeExcluir ? `
                                 <button
                                     onclick="excluirAlerta(${alerta.id})"
@@ -481,6 +506,15 @@
                                     <i class="bi bi-trash"></i> Excluir
                                 </button>
                                 ` : ''}
+                            </div>
+                            <div class="mt-2">
+                                <button
+                                    onclick="denunciarAlerta(${alerta.id})"
+                                    class="btn btn-outline-danger btn-sm w-100"
+                                    title="Denunciar conteúdo ofensivo">
+                                    <i class="bi bi-flag"></i> Denunciar
+                                    <span class="badge bg-danger ms-1">${alerta.denuncias || 0}</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -512,7 +546,8 @@
 
         // FIX 3: Confirmar alerta com CSRF token
         function confirmarAlerta(id) {
-            if (confirm('Confirmar este alerta como verdadeiro?')) {
+            confirmar('Confirmar este alerta como verdadeiro?').then(ok => {
+                if (!ok) return;
                 postComCsrf(`/alertas/${id}/confirmar`)
                     .then(response => {
                         if (response.ok) {
@@ -523,7 +558,7 @@
                         }
                     })
                     .catch(() => mostrarToast('Erro de conexão ao confirmar alerta.', 'danger'));
-            }
+            });
         }
 
         // Denúncia de alerta com justificativa (modal) — vai para a tela do admin
@@ -558,9 +593,9 @@
         }
 
         // Excluir alerta via DELETE /api/alertas/{id}
-        // Usa /api/** que ignora CSRF no SecurityConfig — resolve o 403
         function excluirAlerta(id) {
-            if (confirm('Excluir este alerta permanentemente? Esta ação não pode ser desfeita.')) {
+            confirmar('Excluir este alerta permanentemente? Esta ação não pode ser desfeita.').then(ok => {
+                if (!ok) return;
                 fetch(`/api/alertas/${id}`, {
                     method: 'DELETE',
                     credentials: 'same-origin'
@@ -576,7 +611,7 @@
                         }
                     })
                     .catch(() => mostrarToast('Erro de conexão ao excluir alerta.', 'danger'));
-            }
+            });
         }
 
         // Toast não-bloqueante (substitui alert())
@@ -602,11 +637,14 @@
         let mapaInstance = null;
         let mapaLat = null, mapaLng = null, mapaTitulo = null;
 
-        function verMapa(lat, lng, titulo) {
-            mapaLat = lat; mapaLng = lng; mapaTitulo = titulo;
-            document.getElementById('modalMapaTitulo').textContent = titulo;
+        function verMapa(alertaId) {
+            const alerta = alertas.find(a => a.id === alertaId);
+            if (!alerta) return;
+            mapaLat = alerta.latitude;
+            mapaLng = alerta.longitude;
+            mapaTitulo = alerta.titulo || '';
+            document.getElementById('modalMapaTitulo').textContent = mapaTitulo;
 
-            // Destrói instância anterior antes de abrir
             if (mapaInstance) { mapaInstance.remove(); mapaInstance = null; }
 
             const modal = new bootstrap.Modal(document.getElementById('modalMapa'));
@@ -635,7 +673,7 @@
 
             L.marker([mapaLat, mapaLng], { icon: icone })
                 .addTo(mapaInstance)
-                .bindPopup(`<strong>${mapaTitulo}</strong><br><small>Lat: ${mapaLat.toFixed(6)}, Lng: ${mapaLng.toFixed(6)}</small>`)
+                .bindPopup(`<strong>${esc(mapaTitulo)}</strong><br><small>Lat: ${mapaLat.toFixed(6)}, Lng: ${mapaLng.toFixed(6)}</small>`)
                 .openPopup();
 
             // Força recalculo de tamanho — resolve o problema do tile branco

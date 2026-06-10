@@ -4,9 +4,11 @@ import br.com.fatec.tcc.dto.AlertaRequestDTO;
 import br.com.fatec.tcc.dto.AlertaResponseDTO;
 import br.com.fatec.tcc.dto.DenunciaAlertaAdminDTO;
 import br.com.fatec.tcc.model.Alerta;
+import br.com.fatec.tcc.model.AlertaConfirmacao;
 import br.com.fatec.tcc.model.AlertaReacao;
 import br.com.fatec.tcc.model.DenunciaAlerta;
 import br.com.fatec.tcc.model.Usuario;
+import br.com.fatec.tcc.repository.AlertaConfirmacaoRepository;
 import br.com.fatec.tcc.repository.AlertaReacaoRepository;
 import br.com.fatec.tcc.repository.AlertaRepository;
 import br.com.fatec.tcc.repository.DenunciaAlertaRepository;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +39,7 @@ public class AlertaService {
 
     private final AlertaRepository alertaRepository;
     private final AlertaReacaoRepository reacaoRepository;
+    private final AlertaConfirmacaoRepository confirmacaoRepository;
     private final DenunciaAlertaRepository denunciaAlertaRepository;
     private final UsuarioService usuarioService;
 
@@ -63,28 +68,57 @@ public class AlertaService {
 
     /**
      * Lista alertas ativos dos últimos 14 dias (visibilidade pública).
-     * Alertas mais antigos permanecem no banco para estatísticas.
+     * Usa uma única query GROUP BY para carregar todas as contagens de reações,
+     * evitando o problema de N+1 queries por alerta.
      */
     public List<AlertaResponseDTO> listarAlertasAtivos(String emailLogado) {
         Usuario usuarioLogado = usuarioService.findUserByUsername(emailLogado);
         LocalDateTime limite = LocalDateTime.now().minusDays(14);
         List<Alerta> alertas = alertaRepository
                 .findByStatusAndDataCriacaoAfterOrderByDataCriacaoDesc(Alerta.StatusAlerta.ATIVO, limite);
+
+        List<Long> ids = alertas.stream().map(Alerta::getId).collect(Collectors.toList());
+        Map<Long, Map<AlertaReacao.TipoReacao, Long>> contagensReacoes = carregarContagensReacoes(ids);
+
         return alertas.stream()
-                .map(alerta -> convertToResponseDTO(alerta, usuarioLogado))
+                .map(alerta -> convertToResponseDTO(alerta, usuarioLogado, contagensReacoes))
                 .collect(Collectors.toList());
+    }
+
+    private Map<Long, Map<AlertaReacao.TipoReacao, Long>> carregarContagensReacoes(Collection<Long> alertaIds) {
+        if (alertaIds.isEmpty()) return Map.of();
+        Map<Long, Map<AlertaReacao.TipoReacao, Long>> resultado = new HashMap<>();
+        for (Object[] row : reacaoRepository.countsByAlertaIds(alertaIds)) {
+            Long alertaId = (Long) row[0];
+            AlertaReacao.TipoReacao tipo = (AlertaReacao.TipoReacao) row[1];
+            Long count = (Long) row[2];
+            resultado.computeIfAbsent(alertaId, k -> new HashMap<>()).put(tipo, count);
+        }
+        return resultado;
     }
 
     /**
      * Confirma um alerta como verdadeiro (ALTERAÇÃO).
-     * Incrementa o contador de confirmações e salva.
+     * Cada usuário só pode confirmar o mesmo alerta uma vez.
      */
     @Transactional
-    public void confirmarAlerta(Long id) {
+    public void confirmarAlerta(Long id, String email) {
         Alerta alerta = alertaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        Usuario usuario = usuarioService.findUserByUsername(email);
+
+        if (confirmacaoRepository.existsByAlertaIdAndUsuarioId(id, usuario.getId())) {
+            throw new RuntimeException("Você já confirmou este alerta.");
+        }
+
+        AlertaConfirmacao confirmacao = new AlertaConfirmacao();
+        confirmacao.setAlerta(alerta);
+        confirmacao.setUsuario(usuario);
+        confirmacaoRepository.save(confirmacao);
+
         alerta.setConfirmacoes(alerta.getConfirmacoes() + 1);
         alertaRepository.save(alerta);
+        log.info("Alerta {} confirmado por {}", id, email);
     }
 
     /**
@@ -276,12 +310,32 @@ public class AlertaService {
     }
 
     /**
-     * Converte a entidade Alerta no DTO enviado ao frontend, calculando dois campos
-     * derivados a partir do usuário logado:
-     *  - meuAlerta : se o alerta foi criado por ele (usado nos filtros "meus alertas");
-     *  - podeExcluir : se ele tem permissão para excluir (autor, moderador ou admin).
+     * Converte um único alerta para DTO fazendo queries individuais de contagem.
+     * Usado para operações sobre um único alerta (criar, reagir, confirmar).
      */
     private AlertaResponseDTO convertToResponseDTO(Alerta alerta, Usuario usuarioLogado) {
+        long likes    = reacaoRepository.countByAlertaIdAndTipo(alerta.getId(), AlertaReacao.TipoReacao.LIKE);
+        long dislikes = reacaoRepository.countByAlertaIdAndTipo(alerta.getId(), AlertaReacao.TipoReacao.DISLIKE);
+        Map<AlertaReacao.TipoReacao, Long> contagens = Map.of(
+            AlertaReacao.TipoReacao.LIKE, likes,
+            AlertaReacao.TipoReacao.DISLIKE, dislikes
+        );
+        return buildResponseDTO(alerta, usuarioLogado, contagens);
+    }
+
+    /**
+     * Converte um alerta para DTO usando contagens pré-carregadas em batch.
+     * Usado em listagens para evitar N+1 queries.
+     */
+    private AlertaResponseDTO convertToResponseDTO(Alerta alerta, Usuario usuarioLogado,
+            Map<Long, Map<AlertaReacao.TipoReacao, Long>> contagensReacoes) {
+        Map<AlertaReacao.TipoReacao, Long> contagens =
+                contagensReacoes.getOrDefault(alerta.getId(), Map.of());
+        return buildResponseDTO(alerta, usuarioLogado, contagens);
+    }
+
+    private AlertaResponseDTO buildResponseDTO(Alerta alerta, Usuario usuarioLogado,
+            Map<AlertaReacao.TipoReacao, Long> contagens) {
         boolean podeExcluir = false;
         boolean meuAlerta = false;
         if (usuarioLogado != null) {
@@ -290,8 +344,8 @@ public class AlertaService {
                           usuarioLogado.getRole() == Usuario.Role.ADMIN ||
                           usuarioLogado.getRole() == Usuario.Role.MODERATOR;
         }
-        long likes    = reacaoRepository.countByAlertaIdAndTipo(alerta.getId(), AlertaReacao.TipoReacao.LIKE);
-        long dislikes = reacaoRepository.countByAlertaIdAndTipo(alerta.getId(), AlertaReacao.TipoReacao.DISLIKE);
+        long likes    = contagens.getOrDefault(AlertaReacao.TipoReacao.LIKE, 0L);
+        long dislikes = contagens.getOrDefault(AlertaReacao.TipoReacao.DISLIKE, 0L);
         return new AlertaResponseDTO(
             alerta.getId(),
             alerta.getTitulo(),

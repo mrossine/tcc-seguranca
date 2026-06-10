@@ -1,6 +1,8 @@
 package br.com.fatec.tcc.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,6 +21,9 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 @EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    @Value("${app.remember-me.key}")
+    private String rememberMeKey;
 
     private static final String[] PUBLIC_PATHS = {
             "/",
@@ -43,7 +48,9 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .ignoringRequestMatchers("/api/**", "/ws/**")
+                        // /ws/** usa STOMP — não suporta CSRF header nativo
+                        // /api/** usa cookie XSRF-TOKEN lido pelo JS via X-XSRF-TOKEN header
+                        .ignoringRequestMatchers("/ws/**")
                 )
                 .headers(headers -> headers
                         .httpStrictTransportSecurity(hsts -> hsts
@@ -92,12 +99,25 @@ public class SecurityConfig {
                         .permitAll()
                 )
                 .rememberMe(remember -> remember
-                        .key("${app.remember-me.key:changeme-in-production}")
-                        .tokenValiditySeconds(7 * 24 * 60 * 60)
+                        .key(rememberMeKey)
+                        .tokenValiditySeconds(3 * 24 * 60 * 60)
                 )
                 .sessionManagement(session -> session
                         .maximumSessions(1)
                         .expiredUrl("/login?sessao-expirada=true")
+                )
+                // Clientes REST (Accept: application/json) recebem 401 em vez de redirect para login
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, e) -> {
+                            String accept = request.getHeader("Accept");
+                            boolean isApiRequest = request.getRequestURI().startsWith("/api/")
+                                    || (accept != null && accept.contains("application/json"));
+                            if (isApiRequest) {
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Não autenticado");
+                            } else {
+                                response.sendRedirect("/login");
+                            }
+                        })
                 );
 
         return http.build();

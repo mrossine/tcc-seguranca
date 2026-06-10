@@ -1,9 +1,11 @@
 package br.com.fatec.tcc.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,9 +19,11 @@ import java.util.List;
 
 @Entity
 @Table(name = "usuarios")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"alertas", "caronasOferecidas", "participacoes", "senha"})
 @EntityListeners(AuditingEntityListener.class)
 public class Usuario implements UserDetails {
     

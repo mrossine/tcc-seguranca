@@ -7,31 +7,14 @@
     <title>Detalhes da Carona - Segurança Fatec ZL</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/app.css">
     <style>
-        .sidebar {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .sidebar a {
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            padding: 10px 15px;
-            display: block;
-            transition: all 0.3s;
-        }
-        .sidebar a:hover, .sidebar a.active {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border-radius: 10px;
-        }
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; }
         .status-ABERTA { background: #28a745; color: white; }
         .status-EM_ANDAMENTO { background: #ffc107; color: #000; }
         .status-FINALIZADA { background: #6c757d; color: white; }
         .status-CANCELADA { background: #dc3545; color: white; }
         .info-row { padding: 12px 0; border-bottom: 1px solid #e0e0e0; }
-        /* Chat */
         .chat-container { border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin-top: 24px; }
         .chat-messages { max-height: 380px; overflow-y: auto; padding: 12px; background: #fafafa; border-radius: 8px; margin-bottom: 12px; }
         .chat-msg { padding: 8px 12px; margin-bottom: 8px; border-radius: 12px; max-width: 80%; width: fit-content; word-break: break-word; }
@@ -43,30 +26,65 @@
         .chat-input-area { display: flex; gap: 8px; }
         .chat-input-area textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px; resize: none; font-size: 14px; overflow-y: hidden; min-height: 40px; max-height: 140px; }
         .chat-msg.sistema { background: #eef2ff; color: #555; font-style: italic; font-size: 12px; text-align: center; max-width: 100%; margin: 6px auto; }
-        .sidebar .logout-btn {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            padding: 10px 15px;
-            display: block;
-            transition: all 0.3s;
-            width: 100%;
-            text-align: left;
-            background: none;
-            border: none;
-            font-size: 1rem;
-        }
-        .sidebar .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border-radius: 10px;
-        }
     </style>
 </head>
 <body>
+<!-- Mobile top navbar -->
+<nav class="navbar navbar-dark d-flex d-md-none align-items-center px-3 py-2 sticky-top bg-app-gradient">
+    <span class="navbar-brand fw-bold mb-0"><i class="bi bi-shield-shaded"></i> Segurança Fatec ZL</span>
+    <button class="navbar-toggler ms-auto border-0" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar"
+            aria-controls="offcanvasSidebar" aria-label="Abrir menu de navegação">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</nav>
+<div class="offcanvas offcanvas-start sidebar" id="offcanvasSidebar" tabindex="-1"
+     aria-labelledby="offcanvasSidebarLabel">
+    <div class="offcanvas-header">
+        <h5 id="offcanvasSidebarLabel" class="offcanvas-title fw-bold">
+            <i class="bi bi-shield-shaded"></i> Segurança Fatec ZL
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button>
+    </div>
+    <div class="offcanvas-body px-0 py-2">
+        <nav class="nav flex-column px-3">
+            <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+            <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+            <a href="/caronas" class="active"><i class="bi bi-car-front"></i> Caronas</a>
+            <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+            <a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+            <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+            <a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
+            </form>
+        </nav>
+    </div>
+</div>
+
+<!-- Modal Confirmação -->
+<div class="modal fade" id="modalConfirmar" tabindex="-1" aria-labelledby="modalConfirmarTitulo" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalConfirmarTitulo">
+                    <i class="bi bi-exclamation-triangle text-warning"></i> Confirmar
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body" id="modalConfirmarTexto"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarOk">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <div class="col-md-3 col-lg-2 px-0 sidebar">
+        <div class="col-md-3 col-lg-2 px-0 sidebar d-none d-md-block">
             <div class="text-center py-4">
                 <i class="bi bi-shield-shaded display-3"></i>
                 <h4 class="mt-2">Segurança Fatec ZL</h4>
@@ -188,12 +206,12 @@
 </div>
 
 <!-- Modal Participantes -->
-<div class="modal fade" id="modalParticipantes" tabindex="-1">
+<div class="modal fade" id="modalParticipantes" tabindex="-1" aria-labelledby="modalParticipantesTitulo">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-people-fill"></i> Participantes da Carona</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="modalParticipantesTitulo"><i class="bi bi-people-fill"></i> Participantes da Carona</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body" id="participantesBody">
                 <div class="text-center"><div class="spinner-border"></div></div>
@@ -212,6 +230,37 @@
     const usuarioAtual = /*[[${#authentication.name}]]*/ '';
     const isMotorista = (usuarioAtual === motoristaEmail);
 
+    function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+    function mostrarToast(mensagem, tipo) {
+        const id = 'toast-' + Date.now();
+        const el = document.createElement('div');
+        el.id = id;
+        el.className = `toast align-items-center text-white bg-${tipo} border-0 position-fixed bottom-0 end-0 m-3`;
+        el.setAttribute('role', 'alert');
+        el.style.zIndex = '9999';
+        el.innerHTML = '<div class="d-flex"><div class="toast-body"></div>' +
+            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button></div>';
+        el.querySelector('.toast-body').textContent = mensagem;
+        document.body.appendChild(el);
+        const bsToast = new bootstrap.Toast(el, { delay: 3500 });
+        bsToast.show();
+        el.addEventListener('hidden.bs.toast', () => el.remove());
+    }
+
+    function confirmar(mensagem) {
+        return new Promise(resolve => {
+            document.getElementById('modalConfirmarTexto').textContent = mensagem;
+            const modalEl = document.getElementById('modalConfirmar');
+            const instance = new bootstrap.Modal(modalEl);
+            const btn = document.getElementById('btnConfirmarOk');
+            const onClick = () => { instance.hide(); btn.removeEventListener('click', onClick); resolve(true); };
+            btn.addEventListener('click', onClick);
+            modalEl.addEventListener('hidden.bs.modal', () => { btn.removeEventListener('click', onClick); resolve(false); }, { once: true });
+            instance.show();
+        });
+    }
+
     function carregarSolicitacoes() {
         if (!isMotorista) return;
         fetch(`/api/caronas/${caronaId}/solicitacoes`)
@@ -225,7 +274,7 @@
                 container.innerHTML = solicitacoes.map(s => `
                     <div class="card mb-2">
                         <div class="card-body">
-                            <strong>${s.passageiroNome}</strong> (${s.passageiroEmail})<br>
+                            <strong>${esc(s.passageiroNome)}</strong> (${esc(s.passageiroEmail)})<br>
                             <div class="mt-2">
                                 <button onclick="aceitar(${s.id})" class="btn btn-success btn-sm">Aceitar</button>
                                 <button onclick="recusar(${s.id})" class="btn btn-danger btn-sm">Recusar</button>
@@ -244,57 +293,59 @@
         fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/aceitar`, { method: 'PUT' })
             .then(res => {
                 if (res.ok) {
-                    alert('Passageiro aceito!');
+                    mostrarToast('Passageiro aceito!', 'success');
                     atualizarVagas();
                     carregarSolicitacoes();
                 } else {
                     return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 }
             })
-            .catch(err => alert('Erro: ' + err.message));
+            .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
     }
 
     function recusar(participacaoId) {
         fetch(`/api/caronas/${caronaId}/solicitacoes/${participacaoId}/recusar`, { method: 'PUT' })
             .then(res => {
                 if (res.ok) {
-                    alert('Passageiro recusado');
+                    mostrarToast('Passageiro recusado.', 'warning');
                     carregarSolicitacoes();
                 } else {
                     return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                 }
             })
-            .catch(err => alert('Erro: ' + err.message));
+            .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
     }
 
     function cancelarCarona() {
-        if (confirm('Cancelar esta carona? Todas as solicitações serão canceladas.')) {
+        confirmar('Cancelar esta carona? Todas as solicitações serão canceladas.').then(ok => {
+            if (!ok) return;
             fetch(`/api/caronas/${caronaId}/cancelar`, { method: 'PUT' })
                 .then(res => {
                     if (res.ok) {
-                        alert('Carona cancelada');
-                        window.location.href = '/caronas';
+                        mostrarToast('Carona cancelada.', 'warning');
+                        setTimeout(() => { window.location.href = '/caronas'; }, 1500);
                     } else {
                         return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                     }
                 })
-                .catch(err => alert('Erro: ' + err.message));
-        }
+                .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
+        });
     }
 
     function excluirCarona() {
-        if (confirm('Excluir permanentemente esta carona? Esta ação não pode ser desfeita.')) {
+        confirmar('Excluir permanentemente esta carona? Esta ação não pode ser desfeita.').then(ok => {
+            if (!ok) return;
             fetch(`/api/caronas/${caronaId}/excluir`, { method: 'DELETE' })
                 .then(res => {
                     if (res.ok) {
-                        alert('Carona excluída');
-                        window.location.href = '/caronas';
+                        mostrarToast('Carona excluída.', 'success');
+                        setTimeout(() => { window.location.href = '/caronas'; }, 1500);
                     } else {
                         return res.json().then(data => { throw new Error(data.message || 'Erro na operação'); });
                     }
                 })
-                .catch(err => alert('Erro: ' + err.message));
-        }
+                .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
+        });
     }
 
     function atualizarVagas() {
@@ -308,18 +359,20 @@
     }
 
     function finalizarCaronaManual() {
-        if (!confirm('Finalizar esta carona? Esta ação não pode ser desfeita.')) return;
-        fetch(`/api/caronas/${caronaId}/finalizar-manual`, { method: 'PUT' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.sucesso) {
-                    alert('Carona finalizada com sucesso!');
-                    window.location.reload();
-                } else {
-                    alert('Erro: ' + (data.erro || 'Não foi possível finalizar a carona.'));
-                }
-            })
-            .catch(() => alert('Erro de conexão ao finalizar a carona.'));
+        confirmar('Finalizar esta carona? Esta ação não pode ser desfeita.').then(ok => {
+            if (!ok) return;
+            fetch(`/api/caronas/${caronaId}/finalizar-manual`, { method: 'PUT' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        mostrarToast('Carona finalizada com sucesso!', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        mostrarToast('Erro: ' + (data.erro || 'Não foi possível finalizar a carona.'), 'danger');
+                    }
+                })
+                .catch(() => mostrarToast('Erro de conexão ao finalizar a carona.', 'danger'));
+        });
     }
 
     if (isMotorista) {
@@ -344,10 +397,12 @@
     function renderizarMensagem(msg, append) {
         const div = document.createElement('div');
         div.dataset.msgId = msg.id;
-        const conteudoEsc = msg.conteudo.replace(/</g,'&lt;').replace(/>/g,'&gt;');
         if (msg.sistema) {
             div.className = 'chat-msg sistema';
-            div.innerHTML = `<i class="bi bi-info-circle"></i> ${conteudoEsc}`;
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-info-circle';
+            div.appendChild(icon);
+            div.appendChild(document.createTextNode(' ' + (msg.conteudo || '')));
             if (append) {
                 chatMensagens.appendChild(div);
                 chatMensagens.scrollTop = chatMensagens.scrollHeight;
@@ -356,11 +411,20 @@
         }
         const propria = (msg.remetenteEmail === usuarioAtual);
         div.className = 'chat-msg ' + (propria ? 'propria' : 'outra');
-        div.innerHTML = `
-            ${!propria ? `<div class="remetente">${msg.remetenteNome}</div>` : ''}
-            <div class="conteudo">${conteudoEsc}</div>
-            <div class="hora">${formatarHora(msg.dataCriacao)}</div>
-        `;
+        if (!propria) {
+            const remetenteDiv = document.createElement('div');
+            remetenteDiv.className = 'remetente';
+            remetenteDiv.textContent = msg.remetenteNome || '';
+            div.appendChild(remetenteDiv);
+        }
+        const conteudoDiv = document.createElement('div');
+        conteudoDiv.className = 'conteudo';
+        conteudoDiv.textContent = msg.conteudo || '';
+        div.appendChild(conteudoDiv);
+        const horaDiv = document.createElement('div');
+        horaDiv.className = 'hora';
+        horaDiv.textContent = formatarHora(msg.dataCriacao);
+        div.appendChild(horaDiv);
         if (append) {
             chatMensagens.appendChild(div);
             chatMensagens.scrollTop = chatMensagens.scrollHeight;
@@ -390,7 +454,6 @@
                         if (m.id > ultimoIdMensagem) ultimoIdMensagem = m.id;
                     });
                 }
-                // Polling a cada 4 segundos para novas mensagens
                 if (!chatIntervalo) {
                     chatIntervalo = setInterval(verificarNovasMensagens, 4000);
                 }
@@ -437,10 +500,10 @@
                 renderizarMensagem(msg, true);
                 if (msg.id > ultimoIdMensagem) ultimoIdMensagem = msg.id;
             } else {
-                alert('Erro: ' + (msg.message || 'Não foi possível enviar a mensagem.'));
+                mostrarToast('Erro: ' + (msg.message || 'Não foi possível enviar a mensagem.'), 'danger');
             }
         })
-        .catch(() => alert('Erro de conexão ao enviar mensagem.'))
+        .catch(() => mostrarToast('Erro de conexão ao enviar mensagem.', 'danger'))
         .finally(() => {
             chatInput.disabled = false;
             chatEnviarBtn.disabled = false;
@@ -458,7 +521,6 @@
                 enviarMensagemChat();
             }
         });
-        // Auto-resize: a caixa cresce e diminui conforme o tamanho da mensagem
         const autoResize = () => {
             chatInput.style.height = 'auto';
             chatInput.style.height = Math.min(chatInput.scrollHeight, 140) + 'px';
@@ -466,7 +528,6 @@
         chatInput.addEventListener('input', autoResize);
     }
 
-    // Só inicializa o chat quando o usuário tem acesso (elemento presente no DOM)
     if (chatMensagens) {
         carregarHistoricoChat();
     }
@@ -483,11 +544,23 @@
                     body.innerHTML = '<p class="text-muted text-center py-2">Nenhum participante confirmado ainda.</p>';
                     return;
                 }
-                body.innerHTML = '<ul class="list-group">' + lista.map(p => `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-person-circle"></i> ${p.passageiroNome}</span>
-                        <small class="text-muted">${p.passageiroEmail}</small>
-                    </li>`).join('') + '</ul>';
+                const ul = document.createElement('ul');
+                ul.className = 'list-group';
+                lista.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    const nome = document.createElement('span');
+                    nome.innerHTML = '<i class="bi bi-person-circle"></i> ';
+                    nome.appendChild(document.createTextNode(p.passageiroNome || ''));
+                    const email = document.createElement('small');
+                    email.className = 'text-muted';
+                    email.textContent = p.passageiroEmail || '';
+                    li.appendChild(nome);
+                    li.appendChild(email);
+                    ul.appendChild(li);
+                });
+                body.innerHTML = '';
+                body.appendChild(ul);
             })
             .catch(() => {
                 body.innerHTML = '<p class="text-danger text-center py-2">Você não tem permissão para ver os participantes.</p>';

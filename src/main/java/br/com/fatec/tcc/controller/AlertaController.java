@@ -39,10 +39,14 @@ public class AlertaController {
         return "redirect:/alertas";
     }
 
-    /** POST /alertas/{id}/confirmar — marca o alerta como verdadeiro (+1 confirmação). */
+    /** POST /alertas/{id}/confirmar — marca o alerta como verdadeiro (+1 confirmação, uma vez por usuário). */
     @PostMapping("/{id}/confirmar")
-    public String confirmarAlerta(@PathVariable Long id) {
-        alertaService.confirmarAlerta(id);
+    public String confirmarAlerta(@PathVariable Long id, Authentication auth) {
+        try {
+            alertaService.confirmarAlerta(id, auth.getName());
+        } catch (RuntimeException e) {
+            // Já confirmado ou alerta não encontrado — redireciona normalmente
+        }
         return "redirect:/alertas";
     }
 

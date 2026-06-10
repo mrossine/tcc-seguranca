@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -31,9 +32,13 @@ public class UsuarioService implements UserDetailsService {
     //Método obrigatório do Spring Security. Busca usuário por e-mail.
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        log.debug("Buscando usuário por email: {}", email);
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
+        log.debug("Autenticando usuário");
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
+        if (alunoExpirado(usuario)) {
+            throw new DisabledException("Matrícula expirada. Entre em contato com a secretaria.");
+        }
+        return usuario;
     }
 
     //Busca um usuário completo (entidade) pelo e-mail – útil para controllers.
@@ -93,6 +98,9 @@ public class UsuarioService implements UserDetailsService {
 
         if (!passwordEncoder.matches(senhaAtual, usuario.getSenha())) {
             throw new RuntimeException("Senha atual incorreta");
+        }
+        if (novaSenha == null || novaSenha.length() < 8) {
+            throw new RuntimeException("A nova senha deve ter no mínimo 8 caracteres");
         }
         usuario.setSenha(passwordEncoder.encode(novaSenha));
         usuarioRepository.save(usuario);

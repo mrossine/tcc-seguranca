@@ -35,9 +35,14 @@ public class AlertaRestController {
     }
 
     @PostMapping("/{id}/confirmar")
-    public ResponseEntity<Map<String, Object>> confirmarAlerta(@PathVariable Long id) {
-        alertaService.confirmarAlerta(id);
-        return ResponseEntity.ok(Map.of("message", "Alerta confirmado com sucesso"));
+    public ResponseEntity<Map<String, Object>> confirmarAlerta(@PathVariable Long id,
+                                                               Authentication authentication) {
+        try {
+            alertaService.confirmarAlerta(id, authentication.getName());
+            return ResponseEntity.ok(Map.of("message", "Alerta confirmado com sucesso"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     /** POST /api/alertas/{id}/denunciar — Body: { "categoria": "...", "justificativa": "..." }. */

@@ -15,7 +15,7 @@ public record UsuarioDTO(
     @Pattern(regexp = ".+@fatec\\.sp\\.gov\\.br$", message = "Use e-mail @fatec.sp.gov.br")
     String email,
 
-    @Size(min = 6, message = "A senha deve ter no mínimo 6 caracteres")
+    @Size(min = 8, message = "A senha deve ter no mínimo 8 caracteres")
     String senha,
 
     String confirmarSenha,   // validação manual no controller/service

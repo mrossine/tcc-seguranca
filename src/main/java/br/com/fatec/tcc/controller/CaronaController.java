@@ -78,7 +78,7 @@ public class CaronaController {
 	/** GET /caronas/{id} — abre a página de detalhes de uma carona específica. */
 	@GetMapping("/{id}")
 	public String detalhesCarona(@PathVariable Long id, Model model, Authentication auth) {
-		CaronaResponseDTO carona = caronaService.buscarPorId(id);
+		CaronaResponseDTO carona = caronaService.buscarPorId(id, auth.getName());
 		model.addAttribute("carona", carona);
 		Usuario usuario = usuarioService.findUserByUsername(auth.getName());
 		model.addAttribute("isAdminOuModerador",

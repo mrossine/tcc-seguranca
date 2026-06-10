@@ -10,28 +10,9 @@
 	rel="stylesheet">
 <link rel="stylesheet"
 	href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="stylesheet" href="/css/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-.sidebar {
-	min-height: 100vh;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-}
-
-.sidebar a {
-	color: rgba(255, 255, 255, 0.8);
-	text-decoration: none;
-	padding: 10px 15px;
-	display: block;
-	transition: all 0.3s;
-}
-
-.sidebar a:hover, .sidebar a.active {
-	background: rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 10px;
-}
-
 .stat-card {
 	border: none;
 	border-radius: 15px;
@@ -50,32 +31,45 @@
 .carona-card {
 	border-left: 4px solid #28a745;
 }
-
-.sidebar .logout-btn {
-	color: rgba(255, 255, 255, 0.8);
-	text-decoration: none;
-	padding: 10px 15px;
-	display: block;
-	transition: all 0.3s;
-	width: 100%;
-	text-align: left;
-	background: none;
-	border: none;
-	font-size: 1rem;
-}
-
-.sidebar .logout-btn:hover {
-	background: rgba(255, 255, 255, 0.2);
-	color: white;
-	border-radius: 10px;
-}
 </style>
 </head>
 <body>
+<!-- Mobile top navbar — visível apenas abaixo de md -->
+<nav class="navbar navbar-dark d-flex d-md-none align-items-center px-3 py-2 sticky-top bg-app-gradient">
+	<span class="navbar-brand fw-bold mb-0"><i class="bi bi-shield-shaded"></i> Segurança Fatec ZL</span>
+	<button class="navbar-toggler ms-auto border-0" type="button"
+	        data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar"
+	        aria-controls="offcanvasSidebar" aria-label="Abrir menu de navegação">
+		<span class="navbar-toggler-icon"></span>
+	</button>
+</nav>
+<div class="offcanvas offcanvas-start sidebar" id="offcanvasSidebar" tabindex="-1"
+     aria-labelledby="offcanvasSidebarLabel">
+	<div class="offcanvas-header">
+		<h5 id="offcanvasSidebarLabel" class="offcanvas-title fw-bold">
+			<i class="bi bi-shield-shaded"></i> Segurança Fatec ZL
+		</h5>
+		<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button>
+	</div>
+	<div class="offcanvas-body px-0 py-2">
+		<nav class="nav flex-column px-3">
+			<a href="/dashboard" class="active"><i class="bi bi-house-door"></i> Dashboard</a>
+			<a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+			<a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+			<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+			<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+			<form th:action="@{/logout}" method="post">
+				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
+			</form>
+		</nav>
+	</div>
+</div>
 	<div class="container-fluid">
 		<div class="row">
 			<!-- Sidebar -->
-			<div class="col-md-3 col-lg-2 px-0 sidebar">
+			<div class="col-md-3 col-lg-2 px-0 sidebar d-none d-md-block">
 				<div class="text-center py-4">
 					<i class="bi bi-shield-shaded display-3"></i>
 					<h4 class="mt-2">Segurança Fatec ZL</h4>
@@ -196,7 +190,12 @@
 	<script
 		src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 	<script>
-        // Load statistics
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s ?? '';
+            return d.innerHTML;
+        }
+
         fetch('/api/estatisticas/ocorrencias')
             .then(response => response.json())
             .then(data => {
@@ -204,8 +203,7 @@
                 document.getElementById('totalCaronas').textContent = data.totalCaronasDisponiveis || 0;
                 document.getElementById('totalUsuarios').textContent = data.totalUsuarios || 0;
             });
-        
-        // Load recent alerts
+
         fetch('/api/alertas')
             .then(response => response.json())
             .then(alertas => {
@@ -214,16 +212,16 @@
                     container.innerHTML = '<p class="text-muted text-center">Nenhum alerta recente.</p>';
                     return;
                 }
-                
+
                 container.innerHTML = alertas.slice(0, 5).map(alerta => `
                     <div class="alert-card p-3 mb-2 border rounded">
                         <div class="d-flex justify-content-between">
-                            <h6 class="mb-1">${alerta.titulo}</h6>
+                            <h6 class="mb-1">${esc(alerta.titulo)}</h6>
                             <small class="text-muted">${new Date(alerta.dataHora).toLocaleString()}</small>
                         </div>
-                        <p class="mb-1">${alerta.descricao || 'Sem descrição'}</p>
+                        <p class="mb-1">${esc(alerta.descricao || 'Sem descrição')}</p>
                         <small class="text-muted">
-                            <i class="bi bi-geo-alt"></i> ${alerta.localizacao}
+                            <i class="bi bi-geo-alt"></i> ${esc(alerta.localizacao)}
                         </small>
                     </div>
                 `).join('');

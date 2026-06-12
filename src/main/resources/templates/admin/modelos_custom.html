@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Modelos Customizados</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/app.css">
+    <style>
+        .filtros-card {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .badge-PENDENTE  { background: #ffc107; color: #212529; }
+        .badge-APROVADO  { background: #198754; color: #fff; }
+        .badge-REJEITADO { background: #dc3545; color: #fff; }
+    </style>
+</head>
+<body>
+<!-- Mobile top navbar -->
+<nav class="navbar navbar-dark d-flex d-md-none align-items-center px-3 py-2 sticky-top bg-app-gradient">
+    <span class="navbar-brand fw-bold mb-0"><i class="bi bi-shield-shaded"></i> Segurança Fatec ZL</span>
+    <button class="navbar-toggler ms-auto border-0" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar"
+            aria-controls="offcanvasSidebar" aria-label="Abrir menu de navegação">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</nav>
+<div class="offcanvas offcanvas-start sidebar" id="offcanvasSidebar" tabindex="-1"
+     aria-labelledby="offcanvasSidebarLabel">
+    <div class="offcanvas-header">
+        <h5 id="offcanvasSidebarLabel" class="offcanvas-title fw-bold">
+            <i class="bi bi-shield-shaded"></i> Segurança Fatec ZL
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button>
+    </div>
+    <div class="offcanvas-body px-0 py-2">
+        <nav class="nav flex-column px-3">
+            <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+            <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+            <a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+            <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+            <a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+            <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+            <a href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+            <a href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+            <a href="/admin/modelos-custom" class="active"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
+            </form>
+        </nav>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 px-0 sidebar d-none d-md-block">
+            <div class="text-center py-4">
+                <i class="bi bi-shield-shaded display-3"></i>
+                <h4 class="mt-2">Segurança Fatec ZL</h4>
+            </div>
+            <nav class="nav flex-column px-3">
+                <a href="/dashboard"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="/alertas"><i class="bi bi-exclamation-triangle"></i> Alertas</a>
+                <a href="/caronas"><i class="bi bi-car-front"></i> Caronas</a>
+                <a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
+                <a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
+                <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+                <a href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+                <a href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+                <a href="/admin/modelos-custom" class="active"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="logout-btn">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </form>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 px-4 py-3">
+            <h2><i class="bi bi-car-front-fill"></i> Modelos de Veículos Customizados</h2>
+            <p class="text-muted mb-3">Solicitações de marcas/modelos fora do catálogo padrão</p>
+
+            <!-- Filtros -->
+            <div class="filtros-card">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-secondary active" onclick="filtrar('')" id="btn-todos">Todos</button>
+                    <button class="btn btn-sm btn-warning" onclick="filtrar('PENDENTE')" id="btn-pendente">
+                        <i class="bi bi-hourglass-split me-1"></i>Pendentes
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="filtrar('APROVADO')" id="btn-aprovado">
+                        <i class="bi bi-check-circle me-1"></i>Aprovados
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="filtrar('REJEITADO')" id="btn-rejeitado">
+                        <i class="bi bi-x-circle me-1"></i>Rejeitados
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabela -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div id="alertBox"></div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Solicitante</th>
+                                    <th>Data</th>
+                                    <th>Status</th>
+                                    <th>Observação</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaCorpo"></tbody>
+                        </table>
+                    </div>
+                    <div id="vazioMsg" class="text-center py-5 text-muted d-none">
+                        <i class="bi bi-inbox fs-1"></i>
+                        <p class="mt-2">Nenhuma solicitação encontrada.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal decisão -->
+<div class="modal fade" id="modalDecisao" tabindex="-1" aria-labelledby="modalDecisaoTitulo" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalDecisaoTitulo">
+                    <i class="bi bi-pencil-square"></i> Decisão sobre Modelo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p>Marca: <strong id="mdMarca"></strong> &nbsp;|&nbsp; Modelo: <strong id="mdModelo"></strong></p>
+                <p>Solicitante: <strong id="mdSolicitante"></strong></p>
+                <div class="mb-3">
+                    <label class="form-label">Observação (opcional)</label>
+                    <textarea class="form-control" id="mdObservacao" rows="3" maxlength="500"
+                              placeholder="Motivo da decisão, instrução ao usuário, etc."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarDecisao('REJEITADO')">
+                    <i class="bi bi-x-circle me-1"></i>Rejeitar
+                </button>
+                <button type="button" class="btn btn-success" onclick="confirmarDecisao('APROVADO')">
+                    <i class="bi bi-check-circle me-1"></i>Aprovar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function getCookie(name) {
+        return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1] || '';
+    }
+
+    let idAtual = null;
+    const modal = new bootstrap.Modal(document.getElementById('modalDecisao'));
+
+    function filtrar(status) {
+        document.querySelectorAll('[id^="btn-"]').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + (status || 'todos')).classList.add('active');
+        carregar(status);
+    }
+
+    function carregar(status = '') {
+        const url = '/api/admin/modelos-custom' + (status ? '?status=' + status : '');
+        fetch(url)
+            .then(r => r.json())
+            .then(data => renderizar(data))
+            .catch(() => mostrarAlerta('Erro ao carregar dados.', 'danger'));
+    }
+
+    function renderizar(lista) {
+        const tbody = document.getElementById('tabelaCorpo');
+        const vazio = document.getElementById('vazioMsg');
+        tbody.innerHTML = '';
+        if (!lista.length) { vazio.classList.remove('d-none'); return; }
+        vazio.classList.add('d-none');
+        lista.forEach(item => {
+            const tr = document.createElement('tr');
+            const dataFmt = item.dataSolicitacao
+                ? new Date(item.dataSolicitacao).toLocaleString('pt-BR') : '-';
+            const acoes = item.status === 'PENDENTE'
+                ? `<button class="btn btn-sm btn-outline-success" onclick="abrirModal(${item.id},'${esc(item.marca)}','${esc(item.modelo)}','${esc(item.solicitanteNome)}')">
+                       <i class="bi bi-pencil-square"></i> Decidir
+                   </button>`
+                : `<span class="text-muted small">${item.dataResolucao ? new Date(item.dataResolucao).toLocaleDateString('pt-BR') : '-'}</span>`;
+            tr.innerHTML = `
+                <td class="text-muted small">${item.id}</td>
+                <td><strong>${esc(item.marca)}</strong></td>
+                <td>${esc(item.modelo)}</td>
+                <td>${esc(item.solicitanteNome)}<br><small class="text-muted">${esc(item.solicitanteEmail)}</small></td>
+                <td class="small">${dataFmt}</td>
+                <td><span class="badge badge-${item.status}">${item.status}</span></td>
+                <td class="small text-muted">${esc(item.observacaoAdmin || '')}</td>
+                <td class="text-center">${acoes}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function esc(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function abrirModal(id, marca, modelo, solicitante) {
+        idAtual = id;
+        document.getElementById('mdMarca').textContent = marca;
+        document.getElementById('mdModelo').textContent = modelo;
+        document.getElementById('mdSolicitante').textContent = solicitante;
+        document.getElementById('mdObservacao').value = '';
+        modal.show();
+    }
+
+    function confirmarDecisao(decisao) {
+        const observacao = document.getElementById('mdObservacao').value.trim();
+        fetch('/api/admin/modelos-custom/' + idAtual, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': getCookie('XSRF-TOKEN') },
+            body: JSON.stringify({ decisao, observacao })
+        })
+        .then(r => r.json())
+        .then(() => {
+            modal.hide();
+            mostrarAlerta('Decisão registrada com sucesso!', 'success');
+            carregar();
+        })
+        .catch(() => mostrarAlerta('Erro ao registrar decisão.', 'danger'));
+    }
+
+    function mostrarAlerta(msg, tipo) {
+        const div = document.getElementById('alertBox');
+        div.innerHTML = `<div class="alert alert-${tipo} alert-dismissible m-3 mb-0 fade show">
+            ${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    }
+
+    carregar();
+</script>
+</body>
+</html>

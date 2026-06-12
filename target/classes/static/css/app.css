@@ -1,0 +1,64 @@
+/* =========================================================
+   Estilos compartilhados — todas as páginas autenticadas
+   ========================================================= */
+
+/* Gradiente da marca */
+.bg-app-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+/* Sidebar desktop */
+.sidebar {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.sidebar a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    padding: 10px 15px;
+    display: block;
+    transition: all 0.3s;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 10px;
+}
+
+.sidebar .logout-btn {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    padding: 10px 15px;
+    display: block;
+    transition: all 0.3s;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.sidebar .logout-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 10px;
+}
+
+/* Offcanvas sidebar móvel — herda os estilos de .sidebar */
+.offcanvas.sidebar {
+    max-width: 280px;
+    min-height: unset;
+}
+
+.offcanvas.sidebar .offcanvas-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.offcanvas.sidebar .offcanvas-title {
+    color: white;
+}

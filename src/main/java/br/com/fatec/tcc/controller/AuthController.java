@@ -24,6 +24,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -58,18 +59,19 @@ public class AuthController {
 			Usuario usuario = usuarioService.findUserByUsername(email);
 
 			log.info("Login mobile bem-sucedido: {}", email);
-			return ResponseEntity.ok(Map.of(
-				"sessionId",    session.getId(),
-				"id",           usuario.getId(),
-				"nomeCompleto", usuario.getNomeCompleto(),
-				"email",        usuario.getEmail(),
-				"matricula",    usuario.getMatricula(),
-				"curso",        usuario.getCurso(),
-				"periodo",      usuario.getPeriodo(),
-				"fotoPerfil",   usuario.getFotoPerfil() != null ? usuario.getFotoPerfil() : "",
-				"ativo",        usuario.getAtivo(),
-				"role",         usuario.getRole()
-			));
+			// Map.of() não aceita null — campos opcionais são tratados explicitamente
+			Map<String, Object> resposta = new HashMap<>();
+			resposta.put("sessionId",    session.getId());
+			resposta.put("id",           usuario.getId());
+			resposta.put("nomeCompleto", usuario.getNomeCompleto());
+			resposta.put("email",        usuario.getEmail());
+			resposta.put("matricula",    usuario.getMatricula());
+			resposta.put("curso",        usuario.getCurso());
+			resposta.put("periodo",      usuario.getPeriodo());
+			resposta.put("fotoPerfil",   usuario.getFotoPerfil() != null ? usuario.getFotoPerfil() : "");
+			resposta.put("ativo",        usuario.getAtivo());
+			resposta.put("role",         usuario.getRole());
+			return ResponseEntity.ok(resposta);
 
 		} catch (AuthenticationException e) {
 			log.warn("Falha no login mobile para: {}", email);

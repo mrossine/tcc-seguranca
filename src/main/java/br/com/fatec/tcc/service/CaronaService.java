@@ -1,7 +1,13 @@
 package br.com.fatec.tcc.service;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -17,11 +23,13 @@ import br.com.fatec.tcc.model.Carona;
 import br.com.fatec.tcc.model.DenunciaCarona;
 import br.com.fatec.tcc.model.ParticipacaoCarona;
 import br.com.fatec.tcc.model.Usuario;
+import br.com.fatec.tcc.model.Veiculo;
 import br.com.fatec.tcc.repository.AvaliacaoCaronaRepository;
 import br.com.fatec.tcc.repository.CaronaRepository;
 import br.com.fatec.tcc.repository.DenunciaCaronaRepository;
 import br.com.fatec.tcc.repository.MensagemCaronaRepository;
 import br.com.fatec.tcc.repository.ParticipacaoCaronaRepository;
+import br.com.fatec.tcc.repository.VeiculoRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -42,6 +50,7 @@ public class CaronaService {
     private final MensagemCaronaRepository mensagemRepository;
     private final UsuarioService usuarioService;
     private final MensagemCaronaService mensagemCaronaService;
+    private final VeiculoRepository veiculoRepository;
 
     /**
      * Cria/oferece uma nova carona (INSERÇÃO).
@@ -68,14 +77,33 @@ public class CaronaService {
             }
         }
 
+        // Verifica se o motorista tem algum veículo cadastrado
+        List<Veiculo> veiculosMotorista = veiculoRepository
+                .findByUsuarioIdAndAtivoTrueOrderByDataCadastroDesc(motorista.getId());
+        if (veiculosMotorista.isEmpty()) {
+            throw new RuntimeException(
+                "SEM_VEICULO:Você não tem nenhum veículo cadastrado. Cadastre seu veículo no perfil antes de criar uma carona.");
+        }
+
+        Veiculo veiculoSelecionado = null;
+        if (request.getVeiculoId() != null) {
+            veiculoSelecionado = veiculosMotorista.stream()
+                    .filter(v -> v.getId().equals(request.getVeiculoId()))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Veículo selecionado não pertence ao seu cadastro."));
+        } else {
+            veiculoSelecionado = veiculosMotorista.get(0);
+        }
+
         Carona carona = new Carona();
         carona.setMotorista(motorista);
         carona.setOrigem(request.getOrigem());
         carona.setDestino(request.getDestino());
         carona.setHorarioSaida(request.getHorarioSaida());
         carona.setVagasDisponiveis(request.getVagasDisponiveis());
-        carona.setVeiculoModelo(request.getVeiculoModelo());
-        carona.setVeiculoPlaca(request.getVeiculoPlaca());
+        carona.setVeiculo(veiculoSelecionado);
+        carona.setVeiculoModelo(veiculoSelecionado.getMarca() + " " + veiculoSelecionado.getModelo());
+        carona.setVeiculoPlaca(veiculoSelecionado.getPlaca());
         carona.setObservacoes(request.getObservacoes());
         carona.setDestinoLatitude(request.getDestinoLatitude());
         carona.setDestinoLongitude(request.getDestinoLongitude());
@@ -85,9 +113,20 @@ public class CaronaService {
         return convertToResponseDTO(saved);
     }
 
+    /** Dados pré-carregados em lote para converter caronas sem N+1 queries. */
+    private record DadosLoteCarona(
+            Map<Long, Long> vagasOcupadasPorCarona,
+            Map<Long, Long> totalCaronasPorMotorista,
+            Map<Long, Double> mediaPorMotorista,
+            Map<Long, Long> totalAvaliacoesPorMotorista,
+            Map<Long, ParticipacaoCarona> participacaoDoUsuario,
+            Set<Long> caronasJaAvaliadas
+    ) {}
+
     /**
      * Lista (CONSULTA) as caronas que o usuário pode ver: as abertas (com filtros
      * opcionais de origem/destino/horário) somadas às caronas privadas das quais ele participa.
+     * Dados derivados (vagas, média, avaliação) são carregados em lote para evitar N+1 queries.
      */
     @Transactional(readOnly = true)
     public List<CaronaResponseDTO> listarCaronasDisponiveis(String email, String origem, String destino,
@@ -100,10 +139,54 @@ public class CaronaService {
 
         List<Carona> todas = new java.util.ArrayList<>(abertas);
         todas.addAll(privadas);
-        return todas.stream()
+
+        List<Carona> visiveis = todas.stream()
                 .filter(c -> caronaVisivelNaLista(c, usuarioLogado))
-                .map(c -> convertToResponseDTO(c, usuarioLogado))
                 .collect(Collectors.toList());
+
+        if (visiveis.isEmpty()) return Collections.emptyList();
+
+        DadosLoteCarona dados = carregarDadosEmLote(visiveis, usuarioLogado);
+        return visiveis.stream()
+                .map(c -> convertToResponseDTO(c, usuarioLogado, dados))
+                .collect(Collectors.toList());
+    }
+
+    /** Carrega em lote todos os dados derivados necessários para converter a lista de caronas. */
+    private DadosLoteCarona carregarDadosEmLote(List<Carona> caronas, Usuario usuarioLogado) {
+        List<Long> caronaIds = caronas.stream().map(Carona::getId).collect(Collectors.toList());
+        List<Long> motoristaIds = caronas.stream()
+                .map(c -> c.getMotorista().getId()).distinct().collect(Collectors.toList());
+
+        Map<Long, Long> vagasOcupadas = new HashMap<>();
+        for (Object[] row : participacaoRepository.countConfirmadasByCaronaIds(caronaIds)) {
+            vagasOcupadas.put((Long) row[0], (Long) row[1]);
+        }
+
+        Map<Long, Long> totalCaronas = new HashMap<>();
+        for (Object[] row : caronaRepository.countByMotoristaIds(motoristaIds)) {
+            totalCaronas.put((Long) row[0], (Long) row[1]);
+        }
+
+        Map<Long, Double> medias = new HashMap<>();
+        Map<Long, Long> totalAvaliacoes = new HashMap<>();
+        for (Object[] row : avaliacaoRepository.mediaEContagemByMotoristaIds(motoristaIds)) {
+            Long mid = (Long) row[0];
+            medias.put(mid, row[1] != null ? ((Number) row[1]).doubleValue() : null);
+            totalAvaliacoes.put(mid, (Long) row[2]);
+        }
+
+        Map<Long, ParticipacaoCarona> participacaoDoUsuario = new HashMap<>();
+        for (ParticipacaoCarona p : participacaoRepository
+                .findByCaronaIdsAndPassageiroId(caronaIds, usuarioLogado.getId())) {
+            participacaoDoUsuario.put(p.getCarona().getId(), p);
+        }
+
+        Set<Long> jaAvaliadas = new HashSet<>(
+                avaliacaoRepository.findCaronaIdsAvaliadasPorPassageiro(caronaIds, usuarioLogado.getId()));
+
+        return new DadosLoteCarona(vagasOcupadas, totalCaronas, medias, totalAvaliacoes,
+                participacaoDoUsuario, jaAvaliadas);
     }
 
     /**
@@ -151,6 +234,9 @@ public class CaronaService {
 
         if (carona.getStatus() != Carona.StatusCarona.ABERTA) {
             throw new RuntimeException("Esta carona não está mais disponível");
+        }
+        if (carona.getMotorista().getId().equals(passageiro.getId())) {
+            throw new RuntimeException("Você não pode solicitar vaga na sua própria carona");
         }
         if (participacaoRepository.findByCaronaAndPassageiro(carona, passageiro).isPresent()) {
             throw new RuntimeException("Você já solicitou esta carona");
@@ -282,9 +368,16 @@ public class CaronaService {
         if (!carona.getMotorista().getId().equals(motorista.getId())) {
             throw new RuntimeException("Apenas o motorista pode cancelar a carona");
         }
+        if (carona.getStatus() == Carona.StatusCarona.FINALIZADA
+                || carona.getStatus() == Carona.StatusCarona.CANCELADA) {
+            throw new RuntimeException("A carona já está " +
+                    (carona.getStatus() == Carona.StatusCarona.FINALIZADA ? "finalizada" : "cancelada"));
+        }
         carona.setStatus(Carona.StatusCarona.CANCELADA);
         for (ParticipacaoCarona p : carona.getParticipacoes()) {
-            if (p.getStatus() == ParticipacaoCarona.StatusParticipacao.SOLICITADA) {
+            // Cancela SOLICITADA e CONFIRMADA — passageiro confirmado também perde a vaga
+            if (p.getStatus() == ParticipacaoCarona.StatusParticipacao.SOLICITADA
+                    || p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA) {
                 p.setStatus(ParticipacaoCarona.StatusParticipacao.CANCELADA);
             }
         }
@@ -317,7 +410,8 @@ public class CaronaService {
             return;
         }
         // Motorista só pode cancelar se a carona ainda não começou
-        if (carona.getStatus() == Carona.StatusCarona.FECHADA) {
+        if (carona.getStatus() == Carona.StatusCarona.FECHADA
+                || carona.getStatus() == Carona.StatusCarona.COMPLETADA) {
             throw new RuntimeException("A carona já foi iniciada e não pode ser cancelada");
         }
         // Cancela em vez de excluir para preservar histórico
@@ -555,6 +649,7 @@ public class CaronaService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /** Lista todas as denúncias (opcionalmente filtradas por status) para o admin. */
+    @Transactional(readOnly = true)
     public List<DenunciaAdminDTO> listarDenuncias(String statusFiltro) {
         List<DenunciaCarona> lista;
         if (statusFiltro == null || statusFiltro.isBlank()) {
@@ -682,6 +777,44 @@ public class CaronaService {
     /** Conversão simples (sem usuário logado): não calcula permissões de avaliar/denunciar. */
     private CaronaResponseDTO convertToResponseDTO(Carona carona) {
         return convertToResponseDTO(carona, null);
+    }
+
+    /**
+     * Converte usando dados pré-carregados em lote — evita N+1 queries na listagem.
+     * Equivale ao overload com usuário, mas lê dos mapas pré-populados em vez de fazer queries.
+     */
+    private CaronaResponseDTO convertToResponseDTO(Carona carona, Usuario usuarioLogado, DadosLoteCarona dados) {
+        long vagasOcupadas = dados.vagasOcupadasPorCarona().getOrDefault(carona.getId(), 0L);
+        Usuario motorista = carona.getMotorista();
+        long totalCaronasMotorista = dados.totalCaronasPorMotorista().getOrDefault(motorista.getId(), 0L);
+        long totalAvaliacoes = dados.totalAvaliacoesPorMotorista().getOrDefault(motorista.getId(), 0L);
+        Double media = totalCaronasMotorista > 10 ? dados.mediaPorMotorista().get(motorista.getId()) : null;
+
+        boolean podeAvaliar = false;
+        boolean podeDenunciar = false;
+        if (usuarioLogado != null && carona.getStatus() == Carona.StatusCarona.FINALIZADA) {
+            boolean ehMotorista = motorista.getId().equals(usuarioLogado.getId());
+            if (ehMotorista) {
+                podeDenunciar = vagasOcupadas > 0;
+            } else {
+                ParticipacaoCarona p = dados.participacaoDoUsuario().get(carona.getId());
+                boolean confirmado = p != null
+                        && p.getStatus() == ParticipacaoCarona.StatusParticipacao.CONFIRMADA;
+                podeDenunciar = confirmado;
+                if (confirmado && !dados.caronasJaAvaliadas().contains(carona.getId())) {
+                    podeAvaliar = true;
+                }
+            }
+        }
+
+        return new CaronaResponseDTO(
+                carona.getId(), motorista.getNomeCompleto(), motorista.getEmail(),
+                carona.getOrigem(), carona.getDestino(), carona.getHorarioSaida(),
+                carona.getVagasDisponiveis(), (int) vagasOcupadas,
+                carona.getVeiculoModelo(), carona.getVeiculoPlaca(), carona.getObservacoes(),
+                carona.getStatus(),
+                media != null ? Math.round(media * 10.0) / 10.0 : null,
+                totalAvaliacoes, podeAvaliar, podeDenunciar);
     }
 
     /**

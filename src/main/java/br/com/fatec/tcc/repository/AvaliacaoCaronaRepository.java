@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -28,4 +29,15 @@ public interface AvaliacaoCaronaRepository extends JpaRepository<AvaliacaoCarona
 
     /** Remove todas as avaliações de uma carona (usado ao excluir a carona). */
     void deleteByCarona(Carona carona);
+
+    /** Média e total de avaliações por motorista — batch para evitar N+1 na listagem. */
+    @Query("SELECT a.motorista.id, AVG(a.estrelas), COUNT(a) FROM AvaliacaoCarona a " +
+           "WHERE a.motorista.id IN :ids GROUP BY a.motorista.id")
+    List<Object[]> mediaEContagemByMotoristaIds(@Param("ids") Collection<Long> ids);
+
+    /** IDs de caronas já avaliadas pelo passageiro — batch para evitar N+1 na listagem. */
+    @Query("SELECT a.carona.id FROM AvaliacaoCarona a " +
+           "WHERE a.carona.id IN :caronaIds AND a.passageiro.id = :userId")
+    List<Long> findCaronaIdsAvaliadasPorPassageiro(
+            @Param("caronaIds") Collection<Long> caronaIds, @Param("userId") Long userId);
 }

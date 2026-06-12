@@ -44,6 +44,10 @@ public class Carona {
     
     private String veiculoModelo;
     private String veiculoPlaca;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "veiculo_id")
+    private Veiculo veiculo;
     
     @Column(length = 500)
     private String observacoes;

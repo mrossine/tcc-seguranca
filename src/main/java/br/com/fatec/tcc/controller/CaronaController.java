@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
 
@@ -62,7 +63,13 @@ public class CaronaController {
 			caronaService.oferecerCarona(request, auth.getName());
 			return "redirect:/caronas";
 		} catch (RuntimeException e) {
-			model.addAttribute("erro", e.getMessage());
+			String msg = e.getMessage();
+			if (msg != null && msg.startsWith("SEM_VEICULO:")) {
+				model.addAttribute("semVeiculo", true);
+				model.addAttribute("erro", msg.substring("SEM_VEICULO:".length()));
+			} else {
+				model.addAttribute("erro", msg);
+			}
 			model.addAttribute("carona", request);
 			return "caronas/nova";
 		}
@@ -70,8 +77,14 @@ public class CaronaController {
 
 	/** POST /caronas/{id}/solicitar — passageiro solicita uma vaga na carona. */
 	@PostMapping("/{id}/solicitar")
-	public String solicitarVaga(@PathVariable Long id, Authentication auth) {
-		caronaService.solicitarVaga(id, auth.getName());
+	public String solicitarVaga(@PathVariable Long id, Authentication auth,
+								RedirectAttributes redirectAttrs) {
+		try {
+			caronaService.solicitarVaga(id, auth.getName());
+			redirectAttrs.addFlashAttribute("sucesso", "Solicitação enviada com sucesso!");
+		} catch (RuntimeException e) {
+			redirectAttrs.addFlashAttribute("erro", e.getMessage());
+		}
 		return "redirect:/caronas";
 	}
 

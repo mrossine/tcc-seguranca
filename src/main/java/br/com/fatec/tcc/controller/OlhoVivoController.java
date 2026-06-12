@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/onibus")
 public class OlhoVivoController {
 
-    @GetMapping
+    @GetMapping({"", "/mapa"})
     public String onibus() {
         return "onibus/mapa";
     }

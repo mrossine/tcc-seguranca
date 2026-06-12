@@ -34,10 +34,19 @@ public class CaronaRestController {
 
     /** POST /api/caronas — motorista oferece uma nova carona. */
     @PostMapping
-    public ResponseEntity<CaronaResponseDTO> criarCarona(@RequestBody CaronaRequestDTO request,
-                                                         Authentication authentication) {
-        CaronaResponseDTO response = caronaService.oferecerCarona(request, authentication.getName());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    public ResponseEntity<?> criarCarona(@RequestBody CaronaRequestDTO request,
+                                         Authentication authentication) {
+        try {
+            CaronaResponseDTO response = caronaService.oferecerCarona(request, authentication.getName());
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (RuntimeException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.startsWith("SEM_VEICULO:")) {
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                        .body(Map.of("semVeiculo", true, "message", msg.substring("SEM_VEICULO:".length())));
+            }
+            return ResponseEntity.badRequest().body(Map.of("message", msg));
+        }
     }
 
     /** GET /api/caronas/{id} — detalhes de uma carona (verifica acesso antes de retornar). */
@@ -125,7 +134,9 @@ public class CaronaRestController {
                                                              @RequestBody Map<String, Object> body,
                                                              Authentication auth) {
         try {
-            Integer estrelas = (Integer) body.get("estrelas");
+            Integer estrelas = body.get("estrelas") != null
+                    ? (Integer) body.get("estrelas")
+                    : (Integer) body.get("nota");
             String comentario = (String) body.getOrDefault("comentario", null);
             caronaService.avaliarCarona(id, auth.getName(), estrelas, comentario);
             return ResponseEntity.ok(Map.of("message", "Avaliação registrada com sucesso!"));

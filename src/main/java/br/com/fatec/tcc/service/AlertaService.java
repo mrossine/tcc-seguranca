@@ -14,6 +14,7 @@ import br.com.fatec.tcc.repository.AlertaRepository;
 import br.com.fatec.tcc.repository.DenunciaAlertaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -118,6 +119,9 @@ public class AlertaService {
                 .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
         Usuario usuario = usuarioService.findUserByUsername(email);
 
+        if (alerta.getUsuario().getId().equals(usuario.getId())) {
+            throw new RuntimeException("Você não pode confirmar o seu próprio alerta.");
+        }
         if (confirmacaoRepository.existsByAlertaIdAndUsuarioId(id, usuario.getId())) {
             throw new RuntimeException("Você já confirmou este alerta.");
         }
@@ -127,8 +131,8 @@ public class AlertaService {
         confirmacao.setUsuario(usuario);
         confirmacaoRepository.save(confirmacao);
 
-        alerta.setConfirmacoes(alerta.getConfirmacoes() + 1);
-        alertaRepository.save(alerta);
+        // Incremento atômico evita lost update em requisições concorrentes
+        alertaRepository.incrementConfirmacoes(id);
         log.info("Alerta {} confirmado por {}", id, email);
     }
 
@@ -148,6 +152,9 @@ public class AlertaService {
         DenunciaAlerta.CategoriaDenuncia categoria = parseCategoria(categoriaStr);
         validarJustificativa(justificativa);
 
+        if (alerta.getUsuario().getId().equals(usuario.getId())) {
+            throw new RuntimeException("Você não pode denunciar o seu próprio alerta.");
+        }
         if (denunciaAlertaRepository.existsByAlertaAndDenunciante(alerta, usuario)) {
             throw new RuntimeException("Você já denunciou este alerta.");
         }
@@ -160,11 +167,9 @@ public class AlertaService {
         denuncia.setStatus(DenunciaAlerta.StatusDenuncia.PENDENTE);
         denunciaAlertaRepository.save(denuncia);
 
-        alerta.setDenuncias(alerta.getDenuncias() + 1);
-        if (alerta.getDenuncias() >= 5) {
-            alerta.setStatus(Alerta.StatusAlerta.DENUNCIADO);
-        }
-        alertaRepository.save(alerta);
+        // Incremento atômico + atualização condicional de status em uma única operação,
+        // evitando lost update concorrente e a necessidade de re-fetch após o save.
+        alertaRepository.incrementDenunciasEAtualizarStatus(id);
         log.info("Alerta {} denunciado por {} — categoria={}", id, email, categoria);
     }
 
@@ -258,9 +263,10 @@ public class AlertaService {
         if (!alerta.getUsuario().getId().equals(usuario.getId()) &&
             usuario.getRole() != Usuario.Role.MODERATOR &&
             usuario.getRole() != Usuario.Role.ADMIN) {
-            throw new RuntimeException("Sem permissão para remover este alerta");
+            throw new AccessDeniedException("Sem permissão para remover este alerta");
         }
-        // Remove os dependentes antes (reações e denúncias não têm cascade)
+        // Remove os dependentes antes (sem cascade no banco)
+        confirmacaoRepository.deleteByAlertaId(id);
         reacaoRepository.deleteByAlertaId(id);
         denunciaAlertaRepository.deleteByAlerta(alerta);
         alertaRepository.delete(alerta);
@@ -282,6 +288,9 @@ public class AlertaService {
                 .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
         Usuario usuario = usuarioService.findUserByUsername(email);
 
+        if (alerta.getUsuario().getId().equals(usuario.getId())) {
+            throw new RuntimeException("Você não pode reagir ao seu próprio alerta.");
+        }
         Optional<AlertaReacao> existente = reacaoRepository.findByAlertaIdAndUsuarioId(alertaId, usuario.getId());
 
         if (existente.isPresent()) {
@@ -312,6 +321,15 @@ public class AlertaService {
         long likes    = reacaoRepository.countByAlertaIdAndTipo(alertaId, AlertaReacao.TipoReacao.LIKE);
         long dislikes = reacaoRepository.countByAlertaIdAndTipo(alertaId, AlertaReacao.TipoReacao.DISLIKE);
         return Map.of("likes", likes, "dislikes", dislikes);
+    }
+
+    /** Busca um único alerta por ID e o converte para DTO com contagens de reações/confirmações. */
+    @Transactional(readOnly = true)
+    public AlertaResponseDTO buscarAlertaPorId(Long id, String emailLogado) {
+        Alerta alerta = alertaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Alerta não encontrado"));
+        Usuario usuarioLogado = usuarioService.findUserByUsername(emailLogado);
+        return convertToResponseDTO(alerta, usuarioLogado);
     }
 
     /** Lista (CONSULTA) todos os alertas criados por um usuário específico. */

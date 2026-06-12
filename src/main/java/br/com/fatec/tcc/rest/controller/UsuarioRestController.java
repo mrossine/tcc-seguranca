@@ -73,9 +73,9 @@ public class UsuarioRestController {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "Senha atual e nova senha são obrigatórias"));
         }
-        if (novaSenha.length() < 6) {
+        if (novaSenha.length() < 8) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "A nova senha deve ter no mínimo 6 caracteres"));
+                    .body(Map.of("message", "A nova senha deve ter no mínimo 8 caracteres"));
         }
         try {
             Usuario usuario = usuarioService.findUserByUsername(auth.getName());

@@ -26,4 +26,10 @@ public class AdminController {
     public String denuncias() {
         return "admin/denuncias";
     }
+
+    /** GET /admin/modelos-custom — tela de aprovação de modelos de veículos customizados. */
+    @GetMapping("/modelos-custom")
+    public String modelosCustom() {
+        return "admin/modelos_custom";
+    }
 }

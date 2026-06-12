@@ -1,0 +1,5 @@
+br\com\fatec\tcc\security\SecurityEndpointsTest.class
+br\com\fatec\tcc\TccApplicationTests.class
+br\com\fatec\tcc\service\CaronaAcessoTest.class
+br\com\fatec\tcc\service\UsuarioServiceTest.class
+br\com\fatec\tcc\service\AlertaServiceTest.class

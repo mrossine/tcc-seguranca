@@ -69,6 +69,9 @@
 			<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
 			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
 			<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
 			<form th:action="@{/logout}" method="post">
 				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
 			</form>
@@ -118,7 +121,12 @@
 				<div th:if="${erro}" class="alert alert-danger d-flex align-items-center mb-3" role="alert">
 					<i class="bi bi-exclamation-triangle-fill me-2"></i>
 					<span th:text="${erro}"></span>
+					<a th:if="${semVeiculo}" href="/perfil" class="btn btn-sm btn-primary ms-3">
+						<i class="bi bi-person-gear me-1"></i>Cadastrar Veículo
+					</a>
 				</div>
+				<!-- flag para o JS abrir o modal automaticamente se voltou sem veículo -->
+				<span id="flagSemVeiculo" th:if="${semVeiculo}" class="d-none"></span>
 
 				<div class="card">
 					<div class="card-body p-4">
@@ -165,12 +173,18 @@
 								</select>
 							</div>
 							<div class="mb-3">
-								<label class="fw-bold">Modelo do Veículo</label>
-								<input type="text" class="form-control" th:field="*{veiculoModelo}" required>
-							</div>
-							<div class="mb-3">
-								<label class="fw-bold">Placa do Veículo</label>
-								<input type="text" class="form-control" th:field="*{veiculoPlaca}" required>
+								<label class="fw-bold">Veículo <span class="text-danger">*</span></label>
+								<div id="veiculoLoadingMsg" class="text-muted small mb-1">
+									<i class="bi bi-hourglass-split"></i> Carregando seus veículos...
+								</div>
+								<select class="form-select" id="veiculoIdSelect" name="veiculoId" required>
+									<option value="">Selecione um veículo</option>
+								</select>
+								<div id="semVeiculoAviso" class="alert alert-warning mt-2 d-none">
+									<i class="bi bi-exclamation-triangle me-1"></i>
+									Você ainda não tem nenhum veículo cadastrado.
+									<a href="/perfil#veiculos" class="alert-link">Cadastre seu veículo no perfil</a> antes de criar uma carona.
+								</div>
 							</div>
 							<div class="mb-3">
 								<label class="fw-bold">Observações (opcional)</label>
@@ -180,9 +194,33 @@
 							<div class="alert alert-warning">
 								<i class="bi bi-shield-exclamation"></i> O sistema apenas conecta motoristas e passageiros. Cada um é responsável pela sua segurança.
 							</div>
-							<button type="submit" class="btn btn-submit"><i class="bi bi-send"></i> Publicar Carona</button>
+							<button type="submit" class="btn btn-submit" id="btnPublicar">
+								<i class="bi bi-send"></i> Publicar Carona
+							</button>
 							<a href="/caronas" class="btn btn-secondary">Cancelar</a>
 						</form>
+
+						<!-- Modal: sem veículo -->
+						<div class="modal fade" id="modalSemVeiculo" tabindex="-1">
+							<div class="modal-dialog modal-sm">
+								<div class="modal-content">
+									<div class="modal-header">
+										<h5 class="modal-title"><i class="bi bi-car-front me-2 text-warning"></i>Veículo necessário</h5>
+										<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+									</div>
+									<div class="modal-body">
+										<p>Você ainda não possui nenhum veículo cadastrado no sistema.</p>
+										<p class="mb-0">Deseja cadastrar agora?</p>
+									</div>
+									<div class="modal-footer">
+										<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Agora não</button>
+										<a href="/perfil" class="btn btn-primary btn-sm">
+											<i class="bi bi-person-gear me-1"></i>Ir para o Perfil
+										</a>
+									</div>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -230,28 +268,39 @@
 	});
 
 	function buscarEndereco(texto, cfg) {
+		const sugestoes = document.getElementById(cfg.sugestoesId);
+		sugestoes.innerHTML = '<div class="geo-item text-muted"><i class="bi bi-hourglass-split"></i> Buscando...</div>';
+		sugestoes.classList.remove('d-none');
+
 		fetch(`/api/geocoding/geocodificar?endereco=${encodeURIComponent(texto)}`)
 			.then(r => r.json())
 			.then(data => {
-				const sugestoes = document.getElementById(cfg.sugestoesId);
-				if (data.erro) { sugestoes.classList.add('d-none'); return; }
-				const item = document.createElement('div');
-				item.className = 'geo-item';
-				item.dataset.lat = data.latitude;
-				item.dataset.lng = data.longitude;
-				item.dataset.endereco = data.endereco || '';
-				item.textContent = '📍 ' + (data.endereco || texto).substring(0, 80);
 				sugestoes.innerHTML = '';
-				sugestoes.appendChild(item);
-				sugestoes.classList.remove('d-none');
-
-				// Auto-seleciona se apenas 1 resultado
-				sugestoes.querySelector('.geo-item').addEventListener('click', function() {
-					selecionarEndereco(cfg, this.dataset.lat, this.dataset.lng, this.dataset.endereco);
-					sugestoes.classList.add('d-none');
+				const lista = data.resultados || [];
+				if (lista.length === 0) {
+					sugestoes.innerHTML = '<div class="geo-item text-muted"><i class="bi bi-x-circle"></i> Nenhum endereço encontrado</div>';
+					return;
+				}
+				lista.forEach(result => {
+					const item = document.createElement('div');
+					item.className = 'geo-item';
+					item.dataset.lat = result.latitude;
+					item.dataset.lng = result.longitude;
+					item.dataset.endereco = result.endereco || '';
+					// Exibe apenas as 3 primeiras partes do endereço para ficar legível
+					const partes = (result.endereco || texto).split(',').slice(0, 3).join(',').trim();
+					item.textContent = '📍 ' + partes;
+					item.addEventListener('click', function() {
+						selecionarEndereco(cfg, this.dataset.lat, this.dataset.lng, this.dataset.endereco);
+						sugestoes.classList.add('d-none');
+					});
+					sugestoes.appendChild(item);
 				});
 			})
-			.catch(() => {});
+			.catch(err => {
+				console.error('Erro ao buscar endereço:', err);
+				sugestoes.innerHTML = '<div class="geo-item text-danger"><i class="bi bi-exclamation-circle"></i> Erro ao buscar endereço</div>';
+			});
 	}
 
 	function selecionarEndereco(cfg, lat, lng, endereco) {
@@ -260,10 +309,59 @@
 		document.getElementById(cfg.validadoId).textContent = endereco;
 		document.getElementById(cfg.statusId).classList.remove('d-none');
 		const input = document.getElementById(cfg.inputId);
-		// Usa o endereço validado selecionado (é o que será salvo na carona),
-		// e não o texto livre digitado pelo usuário.
 		if (endereco) input.value = endereco;
 	}
+
+	// ── Veículos do motorista ────────────────────────────────────────────────
+	const modalSemVeiculo = new bootstrap.Modal(document.getElementById('modalSemVeiculo'));
+
+	function carregarVeiculosSelect() {
+		fetch('/api/veiculos')
+			.then(r => r.json())
+			.then(lista => {
+				const sel = document.getElementById('veiculoIdSelect');
+				const aviso = document.getElementById('semVeiculoAviso');
+				const loadingMsg = document.getElementById('veiculoLoadingMsg');
+				const btnPublicar = document.getElementById('btnPublicar');
+				loadingMsg.classList.add('d-none');
+
+				if (!lista.length) {
+					aviso.classList.remove('d-none');
+					sel.disabled = true;
+					btnPublicar.disabled = true;
+					return;
+				}
+
+				sel.innerHTML = '<option value="">Selecione um veículo</option>';
+				lista.forEach(v => {
+					const o = document.createElement('option');
+					o.value = v.id;
+					o.textContent = `${v.marca} ${v.modelo} — ${v.placa}${v.ano ? ' (' + v.ano + ')' : ''}`;
+					sel.appendChild(o);
+				});
+				// Pré-seleciona se só há um
+				if (lista.length === 1) sel.value = lista[0].id;
+			})
+			.catch(() => {
+				document.getElementById('veiculoLoadingMsg').textContent = 'Erro ao carregar veículos. Recarregue a página.';
+			});
+	}
+
+	carregarVeiculosSelect();
+
+	// Abre modal automaticamente se o servidor devolveu semVeiculo=true
+	if (document.getElementById('flagSemVeiculo')) {
+		modalSemVeiculo.show();
+	}
+
+	// Validação antes do submit: garante veículo selecionado
+	document.getElementById('caronaForm').addEventListener('submit', function(e) {
+		const sel = document.getElementById('veiculoIdSelect');
+		if (!sel.value) {
+			e.preventDefault();
+			modalSemVeiculo.show();
+		}
+	});
 	</script>
 </body>
 </html>

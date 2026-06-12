@@ -57,7 +57,9 @@
 			<a href="/estatisticas" class="active"><i class="bi bi-bar-chart"></i> Estatísticas</a>
 			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
 			<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
-			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
 			<form th:action="@{/logout}" method="post">
 				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
 			</form>
@@ -85,9 +87,9 @@
 					</a>
 					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil
 					</a> 
-					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
-					<i class="bi bi-shield-lock"></i> Admin
-					</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
 					<form th:action="@{/logout}" method="post">
 						<button type="submit" class="logout-btn">
 							<i class="bi bi-box-arrow-right"></i> Sair
@@ -109,7 +111,7 @@
 
 				<!-- Cards de resumo -->
 				<div class="row mb-4">
-					<div class="col-md-4 mb-3">
+					<div class="col-md mb-3" sec:authorize="hasAnyRole('ADMIN', 'MODERADOR')">
 						<div class="card stat-card">
 							<div class="card-body text-center">
 								<i class="bi bi-people display-1 text-primary"></i>
@@ -118,7 +120,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="col-md-4 mb-3">
+					<div class="col-md mb-3">
 						<div class="card stat-card">
 							<div class="card-body text-center">
 								<i class="bi bi-exclamation-triangle display-1 text-warning"></i>
@@ -127,7 +129,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="col-md-4 mb-3">
+					<div class="col-md mb-3">
 						<div class="card stat-card">
 							<div class="card-body text-center">
 								<i class="bi bi-car-front display-1 text-success"></i>
@@ -140,7 +142,7 @@
 
 				<!-- Gráficos -->
 				<div class="row">
-					<div class="col-md-6 mb-4">
+					<div class="col-12 col-md-6 mb-4">
 						<div class="card">
 							<div class="card-header">
 								<h5 class="mb-0">Ocorrências por Tipo</h5>
@@ -152,7 +154,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="col-md-6 mb-4">
+					<div class="col-12 col-md-6 mb-4">
 						<div class="card">
 							<div class="card-header">
 								<h5 class="mb-0">Ocorrências por Horário</h5>
@@ -179,8 +181,8 @@
 					</div>
 				</div>
 
-				<!-- Gráfico de usuários por período — estilo minimalista -->
-				<div class="card mt-4">
+				<!-- Gráfico de usuários por período — apenas admin e moderador -->
+				<div class="card mt-4" sec:authorize="hasAnyRole('ADMIN', 'MODERADOR')">
 					<div class="card-header">
 						<h5 class="mb-0">Usuários por Período</h5>
 					</div>
@@ -197,7 +199,8 @@
         fetch('/api/estatisticas/ocorrencias')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('totalUsuarios').innerText = data.totalUsuarios || 0;
+                const elUsuarios = document.getElementById('totalUsuarios');
+                if (elUsuarios) elUsuarios.innerText = data.totalUsuarios || 0;
                 document.getElementById('totalAlertas').innerText = data.totalAlertasAtivos || 0;
                 document.getElementById('totalCaronas').innerText = data.totalCaronasDisponiveis || 0;
 
@@ -236,7 +239,8 @@
             })
             .catch(error => console.error('Erro ao carregar estatísticas:', error));
 
-		// Gráfico de usuários por período — estilo minimalista
+		// Gráfico de usuários por período — apenas admin e moderador
+		if (document.getElementById('periodoChart')) {
 		fetch('/api/estatisticas/usuarios-por-periodo')
 				.then(res => res.json())
 				.then(data => {
@@ -277,6 +281,7 @@
 						}
 					});
 				});
+		} // fim if periodoChart
     </script>
 </body>
 </html>

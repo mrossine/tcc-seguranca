@@ -52,6 +52,7 @@
             <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
             <a href="/admin/usuarios" class="active"><i class="bi bi-people"></i> Admin: Usuários</a>
             <a href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+            <a href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
             <form th:action="@{/logout}" method="post">
                 <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
             </form>
@@ -95,6 +96,7 @@
                 <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
                 <a href="/admin/usuarios" class="active"><i class="bi bi-people"></i> Admin: Usuários</a>
                 <a href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+                <a href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
                 <form th:action="@{/logout}" method="post">
                     <button type="submit" class="logout-btn">
                         <i class="bi bi-box-arrow-right"></i> Sair
@@ -110,15 +112,15 @@
             <!-- Filtros -->
             <div class="filtros-card">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <label class="form-label">Nome</label>
                         <input type="text" class="form-control" id="filtroNome" placeholder="Buscar por nome...">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <label class="form-label">Email</label>
                         <input type="text" class="form-control" id="filtroEmail" placeholder="Buscar por email...">
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <label class="form-label">Curso</label>
                         <input type="text" class="form-control" id="filtroCurso" placeholder="Buscar por curso...">
                     </div>
@@ -161,6 +163,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/notificacao.js"></script>
 <script>
     function esc(s) {
         const d = document.createElement('div');
@@ -168,20 +171,9 @@
         return d.innerHTML;
     }
 
-    function mostrarToast(mensagem, tipo) {
-        const id = 'toast-' + Date.now();
-        const el = document.createElement('div');
-        el.id = id;
-        el.className = `toast align-items-center text-white bg-${tipo} border-0 position-fixed bottom-0 end-0 m-3`;
-        el.setAttribute('role', 'alert');
-        el.style.zIndex = '9999';
-        el.innerHTML = '<div class="d-flex"><div class="toast-body"></div>' +
-            '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button></div>';
-        el.querySelector('.toast-body').textContent = mensagem;
-        document.body.appendChild(el);
-        const bsToast = new bootstrap.Toast(el, { delay: 3500 });
-        bsToast.show();
-        el.addEventListener('hidden.bs.toast', () => el.remove());
+    function getCsrfToken() {
+        const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : null;
     }
 
     function confirmar(mensagem) {
@@ -289,6 +281,7 @@
             if (!ok) return;
             fetch(`/api/admin/usuarios/${id}`, {
                 method: 'DELETE',
+                headers: { 'X-XSRF-TOKEN': getCsrfToken() },
                 credentials: 'same-origin'
             })
                 .then(res => {

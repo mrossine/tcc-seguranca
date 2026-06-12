@@ -95,7 +95,9 @@
 			<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
 			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
 			<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
-			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-shield-lock"></i> Admin</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
 			<form th:action="@{/logout}" method="post">
 				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
 			</form>
@@ -117,9 +119,9 @@
 					<a href="/estatisticas"> <i class="bi bi-bar-chart"></i> Estatísticas</a>
 					<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
 					<a href="/perfil"> <i class="bi bi-person"></i> Meu Perfil</a>
-					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios" class="nav-link">
-						<i class="bi bi-shield-lock"></i> Admin
-					</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+					<a sec:authorize="hasRole('ADMIN')" href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
 					<form th:action="@{/logout}" method="post">
 						<button type="submit" class="logout-btn">
 							<i class="bi bi-box-arrow-right"></i> Sair
@@ -160,7 +162,7 @@
 					<div class="card-body">
 						<h5><i class="bi bi-funnel"></i> Filtrar Alertas</h5>
 						<div class="row g-3">
-							<div class="col-md-4">
+							<div class="col-12 col-md-4">
 								<label class="form-label">Tipo</label>
 								<select class="form-select" id="tipoFiltro">
 									<option value="">Todos</option>
@@ -171,11 +173,11 @@
 									<option value="OUTRO">Outro</option>
 								</select>
 							</div>
-							<div class="col-md-4">
+							<div class="col-12 col-md-4">
 								<label class="form-label">Data Início</label>
 								<input type="date" class="form-control" id="dataInicio">
 							</div>
-							<div class="col-md-4">
+							<div class="col-12 col-md-4">
 								<label class="form-label">Data Fim</label>
 								<input type="date" class="form-control" id="dataFim">
 							</div>
@@ -310,6 +312,7 @@
 	</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="/js/notificacao.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 	<script>
         let alertas = [];
@@ -598,6 +601,7 @@
                 if (!ok) return;
                 fetch(`/api/alertas/${id}`, {
                     method: 'DELETE',
+                    headers: { 'X-XSRF-TOKEN': getCsrfToken() },
                     credentials: 'same-origin'
                 })
                     .then(response => {
@@ -605,32 +609,13 @@
                             mostrarToast('Alerta excluído com sucesso!', 'success');
                             carregarAlertas();
                         } else {
-                            response.json().then(data => {
-                                mostrarToast('Erro ao excluir: ' + (data.message || 'sem permissão.'), 'danger');
-                            }).catch(() => mostrarToast('Erro ao excluir alerta.', 'danger'));
+                            response.json()
+                                .then(data => mostrarToast(data.message || 'Não foi possível excluir o alerta.', 'danger'))
+                                .catch(() => mostrarToast('Não foi possível excluir o alerta.', 'danger'));
                         }
                     })
                     .catch(() => mostrarToast('Erro de conexão ao excluir alerta.', 'danger'));
             });
-        }
-
-        // Toast não-bloqueante (substitui alert())
-        function mostrarToast(mensagem, tipo) {
-            const id = 'toast-' + Date.now();
-            const toastHtml = `
-                <div id="${id}" class="toast align-items-center text-white bg-${tipo} border-0 position-fixed bottom-0 end-0 m-3"
-                     role="alert" style="z-index:9999">
-                    <div class="d-flex">
-                        <div class="toast-body">${mensagem}</div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto"
-                                data-bs-dismiss="toast"></button>
-                    </div>
-                </div>`;
-            document.body.insertAdjacentHTML('beforeend', toastHtml);
-            const el = document.getElementById(id);
-            const bsToast = new bootstrap.Toast(el, { delay: 3500 });
-            bsToast.show();
-            el.addEventListener('hidden.bs.toast', () => el.remove());
         }
 
         // ── Ver Mapa ──────────────────────────────────────────────────

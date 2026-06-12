@@ -85,8 +85,8 @@ public class RastreamentoService {
                     loc.latitude(), loc.longitude(),
                     carona.getDestinoLatitude(), carona.getDestinoLongitude());
 
-            log.debug("Carona {} — distância ao destino: {:.1f} m (raio: {} m)",
-                    caronaId, distancia, RAIO_CHEGADA_METROS);
+            log.debug("Carona {} — distância ao destino: {} m (raio: {} m)",
+                    caronaId, String.format("%.1f", distancia), RAIO_CHEGADA_METROS);
 
             if (distancia <= RAIO_CHEGADA_METROS && !caronasAgendadas.contains(caronaId)) {
                 tentarMarcarComoCompletada(caronaId);

@@ -2,11 +2,13 @@ package br.com.fatec.tcc.rest.controller;
 
 import br.com.fatec.tcc.dto.DenunciaAdminDTO;
 import br.com.fatec.tcc.dto.DenunciaAlertaAdminDTO;
+import br.com.fatec.tcc.dto.ModeloCustomDTO;
 import br.com.fatec.tcc.dto.UsuarioAdminDTO;
 import br.com.fatec.tcc.model.Usuario;
 import br.com.fatec.tcc.service.AlertaService;
 import br.com.fatec.tcc.service.CaronaService;
 import br.com.fatec.tcc.service.UsuarioService;
+import br.com.fatec.tcc.service.VeiculoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +37,7 @@ public class AdminRestController {
     private final UsuarioService usuarioService;
     private final CaronaService caronaService;
     private final AlertaService alertaService;
+    private final VeiculoService veiculoService;
     private final JdbcTemplate jdbcTemplate;
 
     // 1. Listar todos os usuários — retorna UsuarioAdminDTO com ID incluído
@@ -64,9 +67,13 @@ public class AdminRestController {
 
     // 3. Stored procedure: total de usuários
     @GetMapping("/sp-total-usuarios")
-    public Map<String, Long> chamarProcedureTotalUsuarios() {
-        Long total = jdbcTemplate.queryForObject("CALL sp_total_usuarios()", (rs, rowNum) -> rs.getLong("total"));
-        return Map.of("total", total);
+    public ResponseEntity<?> chamarProcedureTotalUsuarios() {
+        try {
+            Long total = jdbcTemplate.queryForObject("CALL sp_total_usuarios()", (rs, rowNum) -> rs.getLong("total"));
+            return ResponseEntity.ok(Map.of("total", total != null ? total : 0L));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao executar stored procedure: " + e.getMessage()));
+        }
     }
 
     // 4. Listar denúncias das caronas (opcionalmente filtradas por status)
@@ -102,6 +109,25 @@ public class AdminRestController {
             return ResponseEntity.ok().body(Map.of("message", "Status atualizado com sucesso"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // 8. Listar solicitações de modelos customizados
+    @GetMapping("/modelos-custom")
+    public List<ModeloCustomDTO> listarModelosCustom(@RequestParam(required = false) String status) {
+        return veiculoService.listarModelosCustom(status);
+    }
+
+    // 9. Aprovar ou rejeitar um modelo customizado
+    @PutMapping("/modelos-custom/{id}")
+    public ResponseEntity<?> resolverModeloCustom(@PathVariable Long id,
+                                                  @RequestBody Map<String, String> body) {
+        try {
+            ModeloCustomDTO dto = veiculoService.resolverModeloCustom(
+                    id, body.get("decisao"), body.getOrDefault("observacao", ""));
+            return ResponseEntity.ok(dto);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 }

@@ -84,11 +84,20 @@ public class GeocodingController {
     @GetMapping("/geocodificar")
     public ResponseEntity<Map<String, Object>> geocodificar(@RequestParam String endereco) {
         try {
+            // Appenda ", São Paulo, Brasil" se o termo não mencionar cidade/país
+            String query = endereco;
+            String lower = endereco.toLowerCase();
+            if (!lower.contains("são paulo") && !lower.contains("sp")
+                    && !lower.contains("brasil") && !lower.contains("brazil")) {
+                query = endereco + ", São Paulo, Brasil";
+            }
+
             String url = UriComponentsBuilder.fromHttpUrl(NOMINATIM_BASE + "/search")
-                    .queryParam("q", endereco)
+                    .queryParam("q", query)
                     .queryParam("format", "json")
-                    .queryParam("limit", 1)
+                    .queryParam("limit", 5)
                     .queryParam("addressdetails", 1)
+                    .queryParam("countrycodes", "br")
                     .queryParam("accept-language", "pt-BR")
                     .toUriString();
 
@@ -98,26 +107,25 @@ public class GeocodingController {
                     url, HttpMethod.GET, new HttpEntity<>(headers), List.class).getBody();
 
             if (results == null || results.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("erro", "Endereço não encontrado: " + endereco));
+                log.warn("Geocodificação sem resultados para '{}'", endereco);
+                return ResponseEntity.ok(Map.of("resultados", List.of()));
             }
 
-            Map<String, Object> first = results.get(0);
-            String lat = (String) first.get("lat");
-            String lon = (String) first.get("lon");
-            String displayName = (String) first.get("display_name");
-
-            if (lat == null || lon == null) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("erro", "Coordenadas não encontradas para: " + endereco));
+            List<Map<String, Object>> resultados = new java.util.ArrayList<>();
+            for (Map<String, Object> item : results) {
+                String lat = (String) item.get("lat");
+                String lon = (String) item.get("lon");
+                String displayName = (String) item.get("display_name");
+                if (lat == null || lon == null) continue;
+                Map<String, Object> r = new HashMap<>();
+                r.put("endereco", displayName != null ? displayName : endereco);
+                r.put("latitude", Double.parseDouble(lat));
+                r.put("longitude", Double.parseDouble(lon));
+                resultados.add(r);
             }
 
-            Map<String, Object> resultado = new HashMap<>();
-            resultado.put("endereco", displayName != null ? displayName : endereco);
-            resultado.put("latitude", Double.parseDouble(lat));
-            resultado.put("longitude", Double.parseDouble(lon));
-            log.debug("Geocodificação concluída para '{}'", endereco);
-            return ResponseEntity.ok(resultado);
+            log.debug("Geocodificação: {} resultados para '{}'", resultados.size(), endereco);
+            return ResponseEntity.ok(Map.of("resultados", resultados));
 
         } catch (Exception e) {
             log.error("Erro no geocoding direto '{}': {}", endereco, e.getMessage());

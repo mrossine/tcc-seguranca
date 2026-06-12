@@ -43,6 +43,7 @@
             <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
             <a href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
             <a href="/admin/denuncias" class="active"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+            <a href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
             <form th:action="@{/logout}" method="post">
                 <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
             </form>
@@ -66,6 +67,7 @@
                 <a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
                 <a href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
                 <a href="/admin/denuncias" class="active"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+                <a href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
                 <form th:action="@{/logout}" method="post">
                     <button type="submit" class="logout-btn">
                         <i class="bi bi-box-arrow-right"></i> Sair
@@ -109,7 +111,7 @@
             <!-- Filtros -->
             <div class="filtros-card">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-12 col-md-4">
                         <label class="form-label">Filtrar por status</label>
                         <select id="filtroStatus" class="form-select" onchange="carregarDenuncias()">
                             <option value="">Todos</option>
@@ -119,7 +121,7 @@
                             <option value="ARQUIVADA">Arquivada</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-12 col-md-2">
                         <button class="btn btn-secondary w-100" onclick="carregarDenuncias()">
                             <i class="bi bi-arrow-clockwise"></i> Atualizar
                         </button>
@@ -171,7 +173,7 @@
                                 <option value="ARQUIVADA">Arquivada</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-12 col-md-2">
                             <button class="btn btn-secondary w-100" onclick="carregarDenunciasAlertas()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar
                             </button>
@@ -202,6 +204,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/notificacao.js"></script>
 <script>
     const CATEGORIAS = {
         COMPORTAMENTO_INADEQUADO: 'Comportamento inadequado',
@@ -288,7 +291,7 @@
             if (document.getElementById('filtroStatus').value) carregarDenuncias();
             else carregarDenuncias();
         })
-        .catch(err => alert('Erro: ' + err.message));
+        .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
     }
 
     carregarDenuncias();
@@ -373,7 +376,7 @@
             if (!ok) throw new Error(data.error || 'Erro ao atualizar status.');
             carregarDenunciasAlertas();
         })
-        .catch(err => alert('Erro: ' + err.message));
+        .catch(err => mostrarToast('Erro: ' + err.message, 'danger'));
     }
 </script>
 </body>

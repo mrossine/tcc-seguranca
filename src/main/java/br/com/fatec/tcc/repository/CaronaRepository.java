@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -52,4 +53,8 @@ public interface CaronaRepository extends JpaRepository<Carona, Long> {
 	// Usado pelo scheduler para fechar caronas cujo horário já passou
 	@Query("SELECT c FROM Carona c WHERE c.status IN ('ABERTA', 'CHEIA') AND c.horarioSaida <= :agora")
 	List<Carona> findCaronasParaFechar(@Param("agora") LocalDateTime agora);
+
+	/** Total de caronas por motorista — batch para evitar N+1 na listagem. */
+	@Query("SELECT c.motorista.id, COUNT(c) FROM Carona c WHERE c.motorista.id IN :ids GROUP BY c.motorista.id")
+	List<Object[]> countByMotoristaIds(@Param("ids") Collection<Long> ids);
 }

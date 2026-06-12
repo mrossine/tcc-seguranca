@@ -62,6 +62,9 @@
 			<a href="/estatisticas"><i class="bi bi-bar-chart"></i> Estatísticas</a>
 			<a href="/onibus"><i class="bi bi-bus-front-fill"></i> Ônibus em Tempo Real</a>
 			<a href="/perfil"><i class="bi bi-person"></i> Meu Perfil</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/usuarios"><i class="bi bi-people"></i> Admin: Usuários</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/denuncias"><i class="bi bi-flag-fill"></i> Admin: Denúncias</a>
+			<a sec:authorize="hasRole('ADMIN')" href="/admin/modelos-custom"><i class="bi bi-car-front-fill"></i> Admin: Modelos</a>
 			<form th:action="@{/logout}" method="post">
 				<button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Sair</button>
 			</form>

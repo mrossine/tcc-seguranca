@@ -13,7 +13,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 
 @Configuration
@@ -24,6 +28,17 @@ public class SecurityConfig {
 
     @Value("${app.remember-me.key}")
     private String rememberMeKey;
+
+    @Value("${cors.allowed-origins:http://localhost:8080}")
+    private String allowedOrigins;
+
+    /** Converte origens HTTP/HTTPS em equivalentes WS/WSS para o connect-src do CSP. */
+    private String buildWsOrigins() {
+        return Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .map(o -> o.replace("https://", "wss://").replace("http://", "ws://"))
+                .collect(Collectors.joining(" "));
+    }
 
     private static final String[] PUBLIC_PATHS = {
             "/",
@@ -48,8 +63,10 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        // /ws/** usa STOMP — não suporta CSRF header nativo
-                        // /api/** usa cookie XSRF-TOKEN lido pelo JS via X-XSRF-TOKEN header
+                        // Spring Security 6 usa XorCsrfTokenRequestAttributeHandler por padrão,
+                        // que aplica XOR no token antes de validar. O frontend lê o cookie bruto
+                        // e envia como X-XSRF-TOKEN — a validação sempre falha sem este handler.
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                         .ignoringRequestMatchers("/ws/**")
                 )
                 .headers(headers -> headers
@@ -70,7 +87,7 @@ public class SecurityConfig {
                                               "https://*.openstreetmap.org; " +
                                         "connect-src 'self' https://*.tile.openstreetmap.org " +
                                               "https://cdn.jsdelivr.net " +
-                                              "ws://localhost:8080 wss://localhost:8080; " +
+                                              buildWsOrigins() + "; " +
                                         "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;")
                         )
                         .referrerPolicy(referrer -> referrer

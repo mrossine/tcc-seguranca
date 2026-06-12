@@ -27,6 +27,15 @@ public class AlertaRestController {
         return alertaService.listarAlertasAtivos(authentication.getName());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> buscarAlerta(@PathVariable Long id, Authentication authentication) {
+        try {
+            return ResponseEntity.ok(alertaService.buscarAlertaPorId(id, authentication.getName()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PostMapping
     public ResponseEntity<AlertaResponseDTO> criarAlerta(@RequestBody @Valid AlertaRequestDTO request,
                                                          Authentication authentication) {
@@ -92,12 +101,7 @@ public class AlertaRestController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> excluirAlerta(@PathVariable Long id,
                                                              Authentication authentication) {
-        try {
-            alertaService.removerAlerta(id, authentication.getName());
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", e.getMessage()));
-        }
+        alertaService.removerAlerta(id, authentication.getName());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
